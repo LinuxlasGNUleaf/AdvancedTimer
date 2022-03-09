@@ -79,6 +79,9 @@ bool SandSimulation::testForRoom(int i, bool *sublayer)
 
 bool SandSimulation::spawnGrainInRegion(const int* xrange, const int y)
 {
+  uint8_t oldSREG = SREG;
+  cli();
+  
   int free_count = 0;
   for (int xtest = xrange[0]; xtest <= xrange[1]; xtest++){
     if (!field[y][xtest])
@@ -101,6 +104,8 @@ bool SandSimulation::spawnGrainInRegion(const int* xrange, const int y)
   active_i++;
   ledmat->setPoint(y, x, true);
   ledmat->update();
+
+  SREG = oldSREG;
   return true;
 }
 
@@ -153,7 +158,9 @@ void SandSimulation::moveGrain(int active_i, bool *sublayer)
 }
 
 void SandSimulation::updateField()
-{
+{  
+  uint8_t oldSREG = SREG;
+  cli();
   for (int i = 0; i < active_i; i++)
   {
     bool sublayer[] = {false, false, false};
@@ -163,12 +170,11 @@ void SandSimulation::updateField()
     }
     else
     {
-      char buf[35];
-      sprintf(buf, "locking grain no. %d because it is stuck.", active_i);
-      //PRINTS(buf);
       lockGrain(i);
       i--;
     }
   }
   ledmat->update();
+  
+  SREG = oldSREG;
 }
