@@ -4,12 +4,11 @@
 #include "SandSimulation.h"
 
 #define LEDMAT_TYPE MD_MAX72XX::FC16_HW
-#define LEDMAT_MAX_DEVICES 1
+#define LEDMAT_MAX_DEVICES 2
 #define LEDMAT_CLK 13  // or SCK
 #define LEDMAT_DATA 11 // or MOSI
-#define LEDMAT_CS1 9   // or SS
-#define LEDMAT_CS2 10   // or SS
-MD_MAX72XX ledmat = MD_MAX72XX(LEDMAT_TYPE, LEDMAT_CS1, LEDMAT_MAX_DEVICES); // SPI hardware interface
+#define LEDMAT_CS 10   // or SS
+MD_MAX72XX ledmat = MD_MAX72XX(LEDMAT_TYPE, LEDMAT_CS, LEDMAT_MAX_DEVICES); // SPI hardware interface
 SandSimulation sand_sim = SandSimulation(&ledmat);
 
 #define SEG_CLK 2
