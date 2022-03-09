@@ -6,9 +6,9 @@
 
 #define LEDMAT_TYPE MD_MAX72XX::FC16_HW
 #define LEDMAT_MAX_DEVICES 2
-#define LEDMAT_CLK 13  // or SCK
-#define LEDMAT_DATA 11 // or MOSI
-#define LEDMAT_CS 10   // or SS
+#define LEDMAT_CLK 13                                                       // or SCK
+#define LEDMAT_DATA 11                                                      // or MOSI
+#define LEDMAT_CS 10                                                        // or SS
 MD_MAX72XX ledmat = MD_MAX72XX(LEDMAT_TYPE, LEDMAT_CS, LEDMAT_MAX_DEVICES); // SPI hardware interface
 SandSimulation sand_sim = SandSimulation(&ledmat);
 
@@ -28,7 +28,7 @@ void checkPosition()
 // --- constants ---
 const float disp_intensity = 0.001f;
 
-const int spawn_xrange[] = {3,4};
+const int spawn_xrange[] = {3, 4};
 const int spawn_y = 0;
 
 const long spawn_interval = 250;
@@ -60,21 +60,36 @@ void loop()
 {
   if (millis() - lastUpdate >= update_interval || lastUpdate == 0)
   {
+    uint8_t oldSREG = SREG;
+    cli();
+
     lastUpdate = millis();
     sand_sim.updateField();
+
+    SREG = oldSREG;
   }
   if (millis() - lastSpawn >= spawn_interval || lastSpawn == 0)
   {
+    uint8_t oldSREG = SREG;
+    cli();
+
     lastSpawn = millis();
-    if (!sand_sim.spawnGrainInRegion(spawn_xrange, spawn_y)){
+    if (!sand_sim.spawnGrainInRegion(spawn_xrange, spawn_y))
+    {
       sand_sim.resetField();
       sand_sim.spawnGrainInRegion(spawn_xrange, spawn_y);
     }
+
+    SREG = oldSREG;
   }
-  encoder->tick();
   newPos = encoder->getPosition();
-  if (oldPos != newPos) {
-    seg_display.showNumberDec(newPos,true,4);
+  if (oldPos != newPos)
+  {
+    uint8_t oldSREG = SREG;
+    cli();
+    seg_display.showNumberDec(newPos, true, 4);
     oldPos = newPos;
+
+    SREG = oldSREG;
   }
 }

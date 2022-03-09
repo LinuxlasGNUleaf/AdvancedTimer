@@ -1,15 +1,28 @@
 #include "SandSimulation.h"
 #include "Arduino.h"
 
+static bool getBit(byte *field, int row, int col)
+{
+  return (1 & (field[col] >> row));
+}
+
+static void setBit(byte *field, int row, int col, bool val)
+{
+  if (val)
+    field[col] = (field[col] | (1 << row));
+  else
+    field[col] = (field[col] & (~(1 << row)));
+}
+
 SandSimulation::SandSimulation(MD_MAX72XX *led_matrix)
 {
-    ledmat = led_matrix;
-    active_i = 0;
+  ledmat = led_matrix;
+  bot_activeIndex = 0;
 }
 
 SandSimulation::~SandSimulation()
 {
-  ledmat->control(MD_MAX72XX::SHUTDOWN,MD_MAX72XX::ON);
+  ledmat->control(MD_MAX72XX::SHUTDOWN, MD_MAX72XX::ON);
 }
 
 void SandSimulation::init()
@@ -26,32 +39,33 @@ void SandSimulation::setIntensity(float percent)
 
 void SandSimulation::resetField()
 {
-  for (int y = 0; y < 8; y++)
+  for (int row = 0; row < FIELD_SIZE; row++)
   {
-    for (int x = 0; x < 8; x++)
+    for (int col = 0; col < FIELD_SIZE; col++)
     {
-      field[y][x] = false;
+      setBit(bot_field, row, col, false);
     }
   }
 
-  for (unsigned int i = 0; i < sizeof(active)/sizeof(active[0]); i++){
-    active[i][0] = 0;
-    active[i][1] = 0;
+  for (unsigned int i = 0; i < sizeof(bot_active) / sizeof(bot_active[0]); i++)
+  {
+    bot_active[i][0] = 0;
+    bot_active[i][1] = 0;
   }
   ledmat->clear();
 }
 
 bool SandSimulation::testForRoom(int i, bool *sublayer)
 {
-  int x = active[i][0];
-  int y = active[i][1];
+  int x = bot_active[i][0];
+  int y = bot_active[i][1];
   bool found = false;
-  if (y == 7)
+  if (y == FIELD_SIZE - 1)
   { // reached bottom?
     return false;
   }
 
-  if (!field[y + 1][x])
+  if (!getBit(bot_field, y + 1, x))
   { // space directly downwards?
     sublayer[1] = true;
     found = true;
@@ -59,16 +73,16 @@ bool SandSimulation::testForRoom(int i, bool *sublayer)
 
   if (x > 0)
   {
-    if (!field[y + 1][x - 1])
+    if (!getBit(bot_field, y + 1, x - 1))
     { // space down and left?
       sublayer[0] = true;
       found = true;
     }
   }
 
-  if (x < 7)
+  if (x < FIELD_SIZE - 1)
   {
-    if (!field[y + 1][x + 1])
+    if (!getBit(bot_field, y + 1, x + 1))
     { // space down and right?
       sublayer[2] = true;
       found = true;
@@ -77,56 +91,55 @@ bool SandSimulation::testForRoom(int i, bool *sublayer)
   return found;
 }
 
-bool SandSimulation::spawnGrainInRegion(const int* xrange, const int y)
+bool SandSimulation::spawnGrainInRegion(const int *xrange, const int y)
 {
-  uint8_t oldSREG = SREG;
-  cli();
-  
   int free_count = 0;
-  for (int xtest = xrange[0]; xtest <= xrange[1]; xtest++){
-    if (!field[y][xtest])
+  for (int xtest = xrange[0]; xtest <= xrange[1]; xtest++)
+  {
+    if (!getBit(bot_field, y, xtest))
       free_count++;
   }
 
   if (free_count == 0)
     return false;
 
-  int steps = random(1,free_count+1);
-  int x = xrange[0]-1;
-  while (steps > 0){
-    if (!field[y][++x]){
+  int steps = random(1, free_count + 1);
+  int x = xrange[0] - 1;
+  while (steps > 0)
+  {
+    if (!getBit(bot_field, y, ++x))
+    {
       steps--;
     }
   }
-  active[active_i][0] = x;
-  active[active_i][1] = y;
-  field[y][x] = true;
-  active_i++;
+
+  bot_active[bot_activeIndex][0] = x;
+  bot_active[bot_activeIndex][1] = y;
+  bot_activeIndex++;
+  
+  setBit(bot_field, y, x, true);
   ledmat->setPoint(y, x, true);
   ledmat->update();
-
-  SREG = oldSREG;
   return true;
 }
 
 void SandSimulation::lockGrain(int i)
 {
-  for (int j = i; j < active_i - 1; j++)
+  for (int j = i; j < bot_activeIndex - 1; j++)
   {
-    active[j][0] = active[j + 1][0];
-    active[j][1] = active[j + 1][1];
+    bot_active[j][0] = bot_active[j + 1][0];
+    bot_active[j][1] = bot_active[j + 1][1];
   }
-  active_i--;
+  bot_activeIndex--;
 }
 
-void SandSimulation::moveGrain(int active_i, bool *sublayer)
+void SandSimulation::moveGrain(int bot_activeIndex, bool *sublayer)
 {
-  int x = active[active_i][0];
-  int y = active[active_i][1];
+  int x = bot_active[bot_activeIndex][0];
+  int y = bot_active[bot_activeIndex][1];
 
   //remove grain from old position in field and on matrix
-  ledmat->setPoint(y, x, false);
-  field[y][x] = false;
+  setBit(bot_field, y, x, false);
 
   //advance y postion
   y++;
@@ -151,17 +164,14 @@ void SandSimulation::moveGrain(int active_i, bool *sublayer)
       x++;
     }
   }
-  active[active_i][0] = x;
-  active[active_i][1] = y;
-  ledmat->setPoint(y, x, true);
-  field[y][x] = true;
+  bot_active[bot_activeIndex][0] = x;
+  bot_active[bot_activeIndex][1] = y;
+  setBit(bot_field, y, x, true);
 }
 
 void SandSimulation::updateField()
-{  
-  uint8_t oldSREG = SREG;
-  cli();
-  for (int i = 0; i < active_i; i++)
+{
+  for (int i = 0; i < bot_activeIndex; i++)
   {
     bool sublayer[] = {false, false, false};
     if (testForRoom(i, sublayer))
@@ -174,7 +184,8 @@ void SandSimulation::updateField()
       i--;
     }
   }
+
+  ledmat->setBuffer(FIELD_SIZE - 1, FIELD_SIZE, bot_field);
+  ledmat->setBuffer((2 * FIELD_SIZE) - 1, FIELD_SIZE, top_field);
   ledmat->update();
-  
-  SREG = oldSREG;
 }

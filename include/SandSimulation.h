@@ -2,13 +2,18 @@
 #define SAND_SIM
 
 #include "MD_MAX72xx.h"
+#define FIELD_SIZE 8
 
 class SandSimulation
-{
+{ // a class to simulate and control an "hourglass" displayed on two LED 8x8-matrices
 private:
-    bool field[8][8];
-    int active[64][2];
-    int active_i;
+    uint8_t bot_field[FIELD_SIZE];
+    int bot_active[FIELD_SIZE*FIELD_SIZE][2];
+    int bot_activeIndex;
+
+    uint8_t top_field[FIELD_SIZE];
+    int top_active[FIELD_SIZE*FIELD_SIZE][2];
+    int top_activeIndex;
     MD_MAX72XX* ledmat;
 
     bool testForRoom(int, bool*);
