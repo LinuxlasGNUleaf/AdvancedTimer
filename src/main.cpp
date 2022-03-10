@@ -32,7 +32,7 @@ const int spawn_xrange[] = {3, 4};
 const int spawn_y = 0;
 
 const long spawn_interval = 250;
-const long update_interval = 35;
+const long update_interval = 25;
 
 void setup()
 {
@@ -49,6 +49,7 @@ void setup()
   sand_sim.init();
   sand_sim.setIntensity(disp_intensity);
   seg_display.setBrightness(0x0f);
+  sand_sim.testDims();
 }
 
 unsigned long lastSpawn = 0;

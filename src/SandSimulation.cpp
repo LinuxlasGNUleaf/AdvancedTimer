@@ -1,17 +1,44 @@
 #include "SandSimulation.h"
 #include "Arduino.h"
 
-static bool getBit(byte *field, int row, int col)
+/*
+x/col:  7   6   5   4   3   2   1   0     y/row:
+                                      
+      | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |   0
+      | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |   1
+      | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |   2
+      | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |   3
+      | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |   4
+      | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |   5
+      | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |   6
+      | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |   7
+
+*/
+
+static bool getBit(byte *field, int x, int y)
 {
-  return (1 & (field[col] >> row));
+  /**
+   * gets the bit at the specified position if position is in field.
+   * returns true otherwise for convenience purposes.
+   * 
+   * \param field
+   * \param x
+   * \param y
+   * \return true if the bit is set, false if it isn't. Also returns true if position is undefined.
+   */
+  if (y < 0 || y >= FIELD_SIZE || x < 0 || x >= FIELD_SIZE)
+    return 1;
+  return (1 & (field[x] >> y));
 }
 
-static void setBit(byte *field, int row, int col, bool val)
+static void setBit(MD_MAX72XX *led_matrix, byte *field, int x, int y, bool val)
 {
   if (val)
-    field[col] = (field[col] | (1 << row));
+    field[x] = (field[x] | (1 << y));
   else
-    field[col] = (field[col] & (~(1 << row)));
+    field[x] = (field[x] & (~(1 << y)));
+
+  led_matrix->setPoint(y, x, val);
 }
 
 SandSimulation::SandSimulation(MD_MAX72XX *led_matrix)
@@ -37,17 +64,54 @@ void SandSimulation::setIntensity(float percent)
   ledmat->control(MD_MAX72XX::INTENSITY, MAX_INTENSITY * percent);
 }
 
+void SandSimulation::testDims()
+{
+  const int ms_delay = 50;
+  for (int i = 0; i < (int) ledmat->getColumnCount(); i++)
+  {
+    ledmat->setColumn(i, 0xff);
+    ledmat->update();
+    delay(ms_delay);
+    ledmat->setColumn(i, false);
+    ledmat->update();
+  }
+  for (int i = ledmat->getColumnCount()-1; i >= 0; i--)
+  {
+    ledmat->setColumn(i, 0xff);
+    ledmat->update();
+    delay(ms_delay);
+    ledmat->setColumn(i, false);
+    ledmat->update();
+  }
+  for (int i = 0; i < FIELD_SIZE; i++)
+  {
+    ledmat->setRow(i, 0b11111111);
+    ledmat->update();
+    delay(ms_delay);
+    ledmat->setRow(i, false);
+    ledmat->update();
+  }
+  for (int i = FIELD_SIZE-1; i >= 0; i--)
+  {
+    ledmat->setRow(i, 0b11111111);
+    ledmat->update();
+    delay(ms_delay);
+    ledmat->setRow(i, false);
+    ledmat->update();
+  }
+}
+
 void SandSimulation::resetField()
 {
-  for (int row = 0; row < FIELD_SIZE; row++)
+  for (int x = 0; x < FIELD_SIZE; x++)
   {
-    for (int col = 0; col < FIELD_SIZE; col++)
+    for (int y = 0; y < FIELD_SIZE; y++)
     {
-      setBit(bot_field, row, col, false);
+      setBit(ledmat, bot_field, x, y, false);
     }
   }
 
-  for (unsigned int i = 0; i < sizeof(bot_active) / sizeof(bot_active[0]); i++)
+  for (unsigned int i = 0; i < FIELD_SIZE * FIELD_SIZE; i++)
   {
     bot_active[i][0] = 0;
     bot_active[i][1] = 0;
@@ -59,44 +123,22 @@ bool SandSimulation::testForRoom(int i, bool *sublayer)
 {
   int x = bot_active[i][0];
   int y = bot_active[i][1];
-  bool found = false;
-  if (y == FIELD_SIZE - 1)
-  { // reached bottom?
-    return false;
-  }
 
-  if (!getBit(bot_field, y + 1, x))
-  { // space directly downwards?
-    sublayer[1] = true;
-    found = true;
-  }
+  // "1" in the sublayer means: obstructed
+  // "0" in the sublayer means: free
+  sublayer[0] = getBit(bot_field, x + 1, y + 1);
+  sublayer[1] = getBit(bot_field, x, y + 1);
+  sublayer[2] = getBit(bot_field, x - 1, y + 1);
 
-  if (x > 0)
-  {
-    if (!getBit(bot_field, y + 1, x - 1))
-    { // space down and left?
-      sublayer[0] = true;
-      found = true;
-    }
-  }
-
-  if (x < FIELD_SIZE - 1)
-  {
-    if (!getBit(bot_field, y + 1, x + 1))
-    { // space down and right?
-      sublayer[2] = true;
-      found = true;
-    }
-  }
-  return found;
+  return !(sublayer[0] && sublayer[1] && sublayer[2]);
 }
 
-bool SandSimulation::spawnGrainInRegion(const int *xrange, const int y)
+bool SandSimulation::spawnGrainInRegion(const int *xrange, const int ystart)
 {
   int free_count = 0;
   for (int xtest = xrange[0]; xtest <= xrange[1]; xtest++)
   {
-    if (!getBit(bot_field, y, xtest))
+    if (!getBit(bot_field, xtest, ystart))
       free_count++;
   }
 
@@ -107,18 +149,17 @@ bool SandSimulation::spawnGrainInRegion(const int *xrange, const int y)
   int x = xrange[0] - 1;
   while (steps > 0)
   {
-    if (!getBit(bot_field, y, ++x))
+    if (!getBit(bot_field, ++x, ystart))
     {
       steps--;
     }
   }
 
   bot_active[bot_activeIndex][0] = x;
-  bot_active[bot_activeIndex][1] = y;
+  bot_active[bot_activeIndex][1] = ystart;
   bot_activeIndex++;
-  
-  setBit(bot_field, y, x, true);
-  ledmat->setPoint(y, x, true);
+
+  setBit(ledmat, bot_field, x, ystart, true);
   ledmat->update();
   return true;
 }
@@ -139,34 +180,30 @@ void SandSimulation::moveGrain(int bot_activeIndex, bool *sublayer)
   int y = bot_active[bot_activeIndex][1];
 
   //remove grain from old position in field and on matrix
-  setBit(bot_field, y, x, false);
+  setBit(ledmat, bot_field, x, y, false);
 
   //advance y postion
   y++;
 
   // if field directly beneath is unobstructed, move straight down
   // else, choose path based on available options
-  if (!sublayer[1])
+  if (sublayer[1])
   {
-    if (sublayer[0] && sublayer[2])
+    if (!(sublayer[0] || sublayer[2]))
     {
       if (random(0, 2) == 1)
-        x--;
-      else
         x++;
+      else
+        x--;
     }
-    else if (sublayer[0])
-    {
-      x--;
-    }
-    else
-    {
+    else if (!sublayer[0])
       x++;
-    }
+    else
+      x--;
   }
   bot_active[bot_activeIndex][0] = x;
   bot_active[bot_activeIndex][1] = y;
-  setBit(bot_field, y, x, true);
+  setBit(ledmat, bot_field, x, y, true);
 }
 
 void SandSimulation::updateField()
@@ -184,8 +221,5 @@ void SandSimulation::updateField()
       i--;
     }
   }
-
-  ledmat->setBuffer(FIELD_SIZE - 1, FIELD_SIZE, bot_field);
-  ledmat->setBuffer((2 * FIELD_SIZE) - 1, FIELD_SIZE, top_field);
   ledmat->update();
 }

@@ -26,6 +26,7 @@ public:
     void setIntensity(float);
     void resetField();
     void updateField();
+    void testDims();
     bool spawnGrainInRegion(const int*, const int);
 };
 
