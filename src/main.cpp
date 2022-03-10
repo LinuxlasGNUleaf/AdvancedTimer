@@ -49,33 +49,36 @@ void tickHourGlass();
 
 void setup()
 {
+  Serial.begin(9600);
+  Serial.println("booting...");
   randomSeed(analogRead(0));
-
+  
   encoder = new RotaryEncoder(ROT_ENC1, ROT_ENC2, RotaryEncoder::LatchMode::FOUR3);
 
+  Serial.print("attaching interrupts...");
   // register interrupt routine
   attachInterrupt(digitalPinToInterrupt(ROT_ENC1), checkPosition, CHANGE);
   attachInterrupt(digitalPinToInterrupt(ROT_ENC2), checkPosition, CHANGE);
 
-  Serial.begin(9600);
-  Serial.println("booted successfully.");
+  Serial.print("done.\ninitializing LED matrices...");
   sand_sim.init();
   sand_sim.setIntensity(disp_intensity);
   seg_display.setBrightness(0x0f);
+  
+  Serial.print("done.\nboot complete. starting animation.");
 
-  fillUpperHalf();
-  delay(1000);
+  sand_sim.setUpdateIntervals(update_interval,spawn_interval);
+  sand_sim.fillUpperHalf();
   sand_sim.setYRange(FIELD_SIZE, 2*FIELD_SIZE);
 }
 
-unsigned long lastSpawn = 0;
-unsigned long lastUpdate = 0;
 int oldPos = 0;
 int newPos;
-
+unsigned long last_update = 0;
+unsigned long last_spawn = 0;
 void loop()
 {
-  tickHourGlass();
+  sand_sim.tickHourglass(&last_update,&last_spawn);
   newPos = encoder->getPosition();
   if (oldPos != newPos)
   {
@@ -85,65 +88,5 @@ void loop()
     oldPos = newPos;
 
     SREG = oldSREG;
-  }
-}
-
-void tickHourGlass()
-{
-  if (millis() - lastUpdate >= update_interval || lastUpdate == 0)
-  {
-    uint8_t oldSREG = SREG;
-    cli();
-
-    lastUpdate = millis();
-    sand_sim.updateField();
-
-    SREG = oldSREG;
-  }
-  if (millis() - lastSpawn >= spawn_interval || lastSpawn == 0)
-  {
-    uint8_t oldSREG = SREG;
-    cli();
-
-    lastSpawn = millis();
-    sand_sim.spawnGrainInRegion(spawn_xrange);
-    sand_sim.removeGrainFromRegion(0,FIELD_SIZE-1);
-
-    if (sand_sim.is_full)
-    {
-      while(1);
-    }
-
-    SREG = oldSREG;
-  }
-}
-
-void fillUpperHalf()
-{
-  sand_sim.setYRange(0,FIELD_SIZE);
-  int xrange[] = {0,7};
-  unsigned long lastSpawn = 0;
-  unsigned long lastUpdate = 0;
-  while (!sand_sim.is_full)
-  {
-    if (millis() - lastUpdate >= update_interval || lastUpdate == 0)
-    {
-      uint8_t oldSREG = SREG;
-      cli();
-
-      lastUpdate = millis();
-      sand_sim.updateField();
-
-      SREG = oldSREG;
-    }
-    if (millis() - lastSpawn >= spawn_interval || lastSpawn == 0)
-    {
-      uint8_t oldSREG = SREG;
-      cli();
-
-      lastSpawn = millis();
-      sand_sim.spawnGrainInRegion(xrange);
-      SREG = oldSREG;
-    }
   }
 }

@@ -15,6 +15,8 @@ private:
     int active_i;
     MD_MAX72XX* ledmat;
     uint16_t* constraints;
+    unsigned long ms_screen_update;
+    unsigned long ms_grain_spawn;
 
     bool testForRoom(int, bool*);
     void lockGrain(int);
@@ -32,9 +34,12 @@ public:
     void updateField();
     void testDims();
     void setBit(int, int, bool);
-    void spawnGrainInRegion(const int*);
+    void spawnGrainInRegion(int x_start = 0, int x_end = FIELD_SIZE-1);
     void removeGrainFromRegion(int, int);
     void setYRange(int, int);
+    void setUpdateIntervals(unsigned long, unsigned long);
+    void fillUpperHalf();
+    void tickHourglass(unsigned long *last_screen_update, unsigned long *last_grain_spawn);
 };
 
 #endif
