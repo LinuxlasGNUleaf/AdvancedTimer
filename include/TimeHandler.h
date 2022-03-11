@@ -12,7 +12,7 @@ enum TIMER_STATE {
     FINISHED,
 };
 
-class TimeHandler
+class TimerHandler
 { // handles the time display and rotary encoder
     private:
         TIMER_STATE state;
@@ -20,13 +20,23 @@ class TimeHandler
         int timer_minutes;
         const int *encoder_pins;
         const int *display_pins;
-        void checkPosition();
+        
+        bool blink_state;
+        unsigned long last_blink;
+        unsigned long *blink_delay;
 
+        int old_encoder_pos;
+
+        void checkPosition();
     public:
         RotaryEncoder *enc;
 
-        TimeHandler(const int *enc_pins, const int *disp_pins);
+        TimerHandler(const int *enc_pins, const int *disp_pins, unsigned long *blink_delay);
         void init(void (*checkFunc)());
+        void displayMinutes(int num, bool dots, bool leading_zeroes);
+        void tick();
+        void resetTimer();
+        void setBlinkDelay(unsigned long *blink_delay);
 };
 
 #endif

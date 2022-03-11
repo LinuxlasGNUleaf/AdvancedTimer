@@ -10,7 +10,7 @@
  * ====================>> CONSTANTS <<====================
 */
 
-//==========>> LED MATRIX <<==========
+//==========>> SAND SIMULATION <<==========
 // spi_bus: DIO, CLK, CS
 const int spi_bus[] = {11, 13, 10};
 // matrix count
@@ -27,31 +27,30 @@ uint16_t constraints[] = {
     0b0000000110000000,
     0b0000001111000000,
     0b0000011111100000};
-//====================================
+//=========================================
 
-//==========>> 7 SEGMENT DISPLAY <<==========
+//==========>> TIMER SETTINGS <<==========
 // display pins: CLK, DIO
-const int disp_pins[] = {8, 7};
+const int disp_pins[] = {8, 9};
 // rotary encoder: CLK, DT, LatchMode
-const int enc_pins[] = {2, 3};
+const int enc_pins[] = {2, 3, 4};
 const RotaryEncoder::LatchMode mode = RotaryEncoder::LatchMode::FOUR3;
 //===========================================
 
-//==========>> SIMULATION SETTINGS <<==========
+//==========>> SETTINGS <<==========
 const float disp_intensity = 0.001f;
 
-const int spawn_xrange[] = {3, 4};
-const int spawn_y = 0;
+const unsigned long spawn_interval = 75;
+const unsigned long update_interval = 25;
 
-const long spawn_interval = 100;
-const long update_interval = 25;
+unsigned long blink_delay[] = {666, 333};
 //=============================================
 
 /*
  * ====================>> OBJECTS AND FUNCTIONS <<====================
 */
 
-TimeHandler time_handler = TimeHandler(enc_pins, disp_pins);
+TimerHandler time_handler = TimerHandler(enc_pins, disp_pins, blink_delay);
 SandSimulation sand_sim = SandSimulation(mat_type, spi_bus, mat_count, constraints);
 
 void fillUpperHalf();
@@ -71,7 +70,7 @@ void setup()
   time_handler.init(checkPosition);
   sand_sim.init();
 
-  // fill upepr half of hourglass
+  // fill upper half of hourglass
   sand_sim.setIntensity(disp_intensity);
   sand_sim.setUpdateIntervals(update_interval, spawn_interval);
   sand_sim.fillUpperHalf();
@@ -83,4 +82,5 @@ unsigned long last_spawn = 0;
 void loop()
 {
   sand_sim.tickHourglass(&last_update, &last_spawn);
+  time_handler.tick();
 }
