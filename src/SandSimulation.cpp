@@ -65,13 +65,15 @@ void transformXY(int *x, int *y)
   }
 }
 
-SandSimulation::SandSimulation(MD_MAX72XX *led_matrix, uint16_t *constraints, int ystart, int y_stop)
+SandSimulation::SandSimulation(const MD_MAX72XX::moduleType_t mat_type, const int *spi_bus, const int mat_count, uint16_t *constraints)
 {
-  this->ledmat = led_matrix;
+  this->mat_type = mat_type;
+  this->spi_bus = spi_bus;
+  this->mat_count = mat_count;
   this->constraints = constraints;
   this->active_i = 0;
-  this->y_start = ystart;
-  this->y_stop = y_stop;
+  this->y_start = 0;
+  this->y_stop = (FIELD_SIZE * 2) - 1;
   this->is_full = false;
   this->is_empty = false;
 }
@@ -181,6 +183,8 @@ void SandSimulation::setUpdateIntervals(unsigned long ms_screen_update, unsigned
 
 void SandSimulation::init()
 {
+  ledmat = new MD_MAX72XX(mat_type, spi_bus[0], spi_bus[1], spi_bus[2], mat_count);
+
   ledmat->begin();
   ledmat->control(MD_MAX72XX::UPDATE, MD_MAX72XX::OFF);
   resetField();

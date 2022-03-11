@@ -18,7 +18,11 @@ private:
     int y_start;
     int y_stop;
 
-    MD_MAX72XX* ledmat;
+    MD_MAX72XX::moduleType_t mat_type;
+    const int *spi_bus;
+    int mat_count;
+    MD_MAX72XX *ledmat;
+
     unsigned long ms_screen_update;
     unsigned long ms_grain_spawn;
 
@@ -29,7 +33,7 @@ public:
     bool is_full;
     bool is_empty;
 
-    SandSimulation(MD_MAX72XX *led_matrix, uint16_t *constraints, int ystart = 0, int ystop = (FIELD_SIZE * 2) - 1);
+    SandSimulation(const MD_MAX72XX::moduleType_t mat_type, const int *spi_bus, const int mat_count, uint16_t *constraints);
 
     bool getBit(uint16_t *field, int x, int y);
     void setBit(int x, int y, bool val);
