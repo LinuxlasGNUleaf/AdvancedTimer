@@ -161,9 +161,9 @@ void SandSimulation::resetField(int y_start, int y_end)
   ledmat->clear();
 }
 
-void SandSimulation::setIntensity(float percent)
+void SandSimulation::setIntensity(int intensity)
 {
-  ledmat->control(MD_MAX72XX::INTENSITY, MAX_INTENSITY * percent);
+  ledmat->control(MD_MAX72XX::INTENSITY, intensity);
 }
 
 void SandSimulation::setYRange(int y_start, int y_stop)
@@ -325,43 +325,37 @@ bool SandSimulation::testForRoom(int index, bool *sublayer)
   return !(sublayer[0] && sublayer[1] && sublayer[2]);
 }
 
-void SandSimulation::fillUpperHalf()
+void SandSimulation::tickFillUpperHalf(unsigned long *last_update, unsigned long *last_spawn)
 {
-  this->setYRange(0, FIELD_SIZE);
-  unsigned long last_update = 0;
-  unsigned long last_spawn = 0;
-  while (!is_full)
-  {
-    if (millis() - last_update >= ms_screen_update || last_update == 0)
-    {
-      uint8_t oldSREG = SREG;
-      cli();
-
-      last_update = millis();
-      this->updateField();
-
-      SREG = oldSREG;
-    }
-    if (millis() - last_spawn >= ms_grain_spawn || last_spawn == 0)
-    {
-      uint8_t oldSREG = SREG;
-      cli();
-
-      last_spawn = millis();
-      this->spawnGrainInRegion(0, 7);
-      SREG = oldSREG;
-    }
-  }
-}
-
-void SandSimulation::tickHourglass(unsigned long *last_screen, unsigned long *last_spawn)
-{
-  if (millis() - *last_screen >= ms_screen_update || last_screen == 0)
+  if (millis() - *last_update >= ms_screen_update || *last_update == 0)
   {
     uint8_t oldSREG = SREG;
     cli();
 
-    *last_screen = millis();
+    *last_update = millis();
+    this->updateField();
+
+    SREG = oldSREG;
+  }
+  if (millis() - *last_spawn >= ms_grain_spawn || *last_spawn == 0)
+  {
+    uint8_t oldSREG = SREG;
+    cli();
+
+    *last_spawn = millis();
+    this->spawnGrainInRegion(0, 7);
+    SREG = oldSREG;
+  }
+}
+
+void SandSimulation::tickHourglass(unsigned long *last_update, unsigned long *last_spawn)
+{
+  if (millis() - *last_update >= ms_screen_update || last_update == 0)
+  {
+    uint8_t oldSREG = SREG;
+    cli();
+
+    *last_update = millis();
     updateField();
 
     SREG = oldSREG;

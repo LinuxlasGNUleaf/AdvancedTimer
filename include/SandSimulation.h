@@ -38,7 +38,7 @@ public:
     bool getBit(uint16_t *field, int x, int y);
     void setBit(int x, int y, bool val);
     void resetField(int y_start=0, int y_end=FIELD_SIZE*2);
-    void setIntensity(float percent);
+    void setIntensity(int intensity);
     void setYRange(int y_start, int y_stop);
     void setUpdateIntervals(unsigned long ms_screen_update, unsigned long ms_grain_spawn);
 
@@ -48,8 +48,8 @@ public:
 
     void spawnGrainInRegion(int x_start = 0, int x_end = FIELD_SIZE-1);
     void removeGrainFromRegion(int y_start, int y_end);
-    void fillUpperHalf();
-    void tickHourglass(unsigned long *last_screen_update, unsigned long *last_grain_spawn);
+    void tickFillUpperHalf(unsigned long *last_update, unsigned long *last_grain_spawn);
+    void tickHourglass(unsigned long *last_update, unsigned long *last_grain_spawn);
 };
 
 #endif
