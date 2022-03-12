@@ -1,23 +1,26 @@
+#include <avr/wdt.h>
 #include "TimerHandler.h"
 
 const uint8_t SEG_STOP[] = {
-    SEG_A | SEG_B | SEG_D | SEG_G | SEG_E,
-    SEG_B | SEG_C | SEG_D,
-    SEG_A | SEG_B | SEG_C | SEG_D | SEG_E | SEG_F,
-    SEG_C | SEG_D | SEG_E | SEG_F | SEG_G
-	};
+    SEG_A | SEG_C | SEG_D | SEG_F | SEG_G,
+    SEG_D | SEG_E | SEG_F | SEG_G,
+    SEG_C | SEG_D | SEG_E | SEG_G,
+    SEG_A | SEG_B | SEG_E | SEG_F | SEG_G};
 
 const uint8_t SEG_CONT[] = {
     SEG_A | SEG_D | SEG_E | SEG_F,
-    SEG_A | SEG_B | SEG_C | SEG_D | SEG_E | SEG_F,
-    SEG_B | SEG_C | SEG_D | SEG_E | SEG_F,
-    SEG_B | SEG_C | SEG_D,
-	};
+    SEG_C | SEG_D | SEG_E | SEG_G,
+    SEG_C | SEG_E | SEG_G,
+    SEG_D | SEG_E | SEG_F | SEG_G,
+};
 
-void TimerHandler::encode_num(int num, uint8_t *segments){
+void (*resetFunc)(void) = 0;
+
+void TimerHandler::encode_num(int num, uint8_t *segments)
+{
     for (int i = 3; i >= 0; i--)
     {
-        segments[i] = seg_display->encodeDigit(num % ((num/10)*10));
+        segments[i] = seg_display->encodeDigit(num % ((num / 10) * 10));
         num /= 10;
     }
 }
@@ -37,9 +40,9 @@ TimerHandler::TimerHandler(const int *enc_pins, bool invert_direction, unsigned 
     this->last_blink_ms = 0;
     this->last_enc_pos = 0;
     this->timer_minutes = 0;
-    
-    this->blink_state = true;
-    this->button_pressed = false;
+
+    this->blink_state = false;
+    this->button_previously_pressed = false;
 }
 
 void TimerHandler::init(void (*encoder_func)())
@@ -50,16 +53,6 @@ void TimerHandler::init(void (*encoder_func)())
     pinMode(encoder_pins[2], INPUT_PULLUP);
     attachInterrupt(digitalPinToInterrupt(encoder_pins[0]), encoder_func, CHANGE);
     attachInterrupt(digitalPinToInterrupt(encoder_pins[1]), encoder_func, CHANGE);
-}
-
-void TimerHandler::resetEncoder()
-{
-    if (invert_direction)
-        last_enc_pos = 1;
-    else
-        last_enc_pos = -1;
-    timer_minutes = 0;
-    enc->setPosition(0);
 }
 
 void TimerHandler::updateDisplay()
@@ -75,20 +68,20 @@ void TimerHandler::updateDisplay()
     case SELECT_TIME:
         power = blink_state;
         dots = blink_state;
-        disp_num = mins_to_display(abs(enc->getPosition()));
+        disp_num = mins_to_display(abs(last_enc_pos));
         encode_num(disp_num, segments);
         break;
     case RUNNING:
         power = true;
         dots = blink_state;
-        disp_num = millis_to_display(end_time-millis());
+        disp_num = millis_to_display(end_time - millis());
         encode_num(disp_num, segments);
         break;
     case PAUSED:
-        power = true;
+        power = blink_state;
         dots = false;
         for (int i = 0; i < 4; i++)
-            segments[i] = (enc->getPosition() % 2)?SEG_CONT[i]:SEG_STOP[i];
+            segments[i] = (last_enc_pos % 2) ? SEG_STOP[i] : SEG_CONT[i];
     default:
         break;
     }
@@ -97,14 +90,14 @@ void TimerHandler::updateDisplay()
         segments[1] |= SEG_DP;
 
     seg_display->setBrightness(display_brightness, power);
-    seg_display->setSegments(segments,4,0);
+    seg_display->setSegments(segments, 4, 0);
 }
 
 void TimerHandler::tick()
 {
     unsigned long current_time = millis();
 
-    if (last_enc_pos != enc->getPosition()) 
+    if (last_enc_pos != enc->getPosition() && digitalRead(encoder_pins[2]))
     {
         if ((invert_direction && enc->getPosition() > 0) || (!invert_direction && enc->getPosition() < 0))
             enc->setPosition(0);
@@ -118,79 +111,61 @@ void TimerHandler::tick()
         updateDisplay();
     }
 
-
-    switch (state)
-    {
-        case SELECT_TIME:
-            if(digitalRead(encoder_pins[2]))
-            { //button not pressed
-                if (button_pressed)
-                {
-                    timer_minutes = abs(enc->getPosition());
-                    button_pressed = false;
-                    if (timer_minutes == 0)
-                        return;
-                    enc->setPosition(0);
-                    state = RUNNING;
-                    start_time = current_time;
-                    end_time = current_time + timer_minutes*60000;
-                    last_blink_ms = start_time;
-                    blink_state = true;
-                    updateDisplay();
-                }
-            }
-            else
-            { //button pressed
-                button_pressed = true;
-            }
-            break;
-
-        case RUNNING:
-            if(digitalRead(encoder_pins[2]))
-            { //button not pressed
-                if (button_pressed)
-                {
-                    time_left = end_time - current_time;
-                    button_pressed = false;
-                    state = PAUSED;
-                    resetEncoder();
-                    seg_display->setSegments(SEG_CONT,4,0);
-                }
-            }
-            else
-            { //button pressed
-                button_pressed = true;
-            }
-            break;
-
-        case PAUSED:
-            if (last_enc_pos != enc->getPosition())
+    if (digitalRead(encoder_pins[2]))
+    { //button not pressed
+        if (wait_for_button_released)
+        {
+            wait_for_button_released = false;
+            button_previously_pressed = false;
+        }
+        else if (button_previously_pressed)
+        {
+            switch (state)
             {
-                if (enc->getPosition() % 2 == 0)
-                    seg_display->setSegments(SEG_CONT,4,0);
-                else
-                    seg_display->setSegments(SEG_STOP,4,0);
-            }
-            switch(digitalRead(encoder_pins[2])){
-                case 0: //button pressed
-                    button_pressed = true;
-                    break;
-                case 1: //button not pressed
-                    if (button_pressed){
-                        time_left = end_time - current_time;
-                        button_pressed = false;
-                        state = PAUSED;
-                        resetEncoder();
-                        seg_display->setSegments(SEG_CONT,4,0);
-                    }
-                    break;
-            }
-            break;
-        case FINISHED:
+            case SELECT_TIME:
+                if (last_enc_pos == 0){
+                    wait_for_button_released = true;
+                    return;
+                }
+                timer_minutes = abs(last_enc_pos);
+                state = RUNNING;
+                start_time = current_time;
+                end_time = current_time + timer_minutes * 60000;
+                break;
 
-            break;
-        default:
-            break;
+            case RUNNING:
+                time_left = end_time - current_time;
+                state = PAUSED;
+                break;
+
+            case PAUSED:
+                time_left = end_time - current_time;
+                if (last_enc_pos % 2)
+                { // STOP selected
+                    resetFunc();
+                }
+                else
+                { // CONTINUE selected
+                    end_time = current_time + time_left;
+                    start_time = current_time;
+                    state = RUNNING;
+                }
+                break;
+            case FINISHED:
+                break;
+            default:
+                break;
+            }
+            enc->setPosition(0);
+            last_blink_ms = current_time;
+            blink_state = true;
+            updateDisplay();
+            wait_for_button_released = true;
+        }
+    }
+    else
+    { //button pressed
+        button_previously_pressed = true;
     }
 }
 

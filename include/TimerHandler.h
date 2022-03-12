@@ -9,9 +9,10 @@
 
 enum TIMER_STATE {
     SELECT_TIME,
-    PAUSED,
     RUNNING,
+    PAUSED,
     FINISHED,
+    STOPPED
 };
 
 class TimerHandler
@@ -33,7 +34,8 @@ class TimerHandler
         bool invert_direction;
         
         bool blink_state;
-        bool button_pressed;
+        bool button_previously_pressed;
+        bool wait_for_button_released;
 
         TM1637Display *seg_display;
 
@@ -50,7 +52,6 @@ class TimerHandler
         void init(void (*encoder_func)());
         void updateDisplay();
         void tick();
-        void resetEncoder();
         void setBlinkDelay(unsigned long *blink_ms);
         void setDisplayBrightness(uint8_t);
 };

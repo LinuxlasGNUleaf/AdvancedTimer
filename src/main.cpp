@@ -94,10 +94,11 @@ void loop()
   sand_sim.setUpdateIntervals(update_ms, hourglass_spawn_delay);
   sand_sim.setYRange(FIELD_SIZE, 2 * FIELD_SIZE);
 
-  while(!digitalRead(time_handler.encoder_pins[2]));
-  while(!sand_sim.is_full){
-    sand_sim.tickHourglass(&last_update, &last_spawn);
+  while(time_handler.state != STOPPED){
+    if (time_handler.state != PAUSED)
+      sand_sim.tickHourglass(&last_update, &last_spawn);
     time_handler.tick();
   }
-  while(1);
+  while (1);
+  
 }
