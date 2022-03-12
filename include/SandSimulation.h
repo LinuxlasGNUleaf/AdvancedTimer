@@ -41,6 +41,7 @@ public:
     void setIntensity(int intensity);
     void setYRange(int y_start, int y_stop);
     void setUpdateIntervals(unsigned long ms_screen_update, unsigned long ms_grain_spawn);
+    unsigned long calculateHourglassSpawnTime(unsigned long minutes);
 
     void init();
     void updateField();

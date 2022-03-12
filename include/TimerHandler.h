@@ -4,6 +4,8 @@
 #include <RotaryEncoder.h>
 #include <TM1637Display.h>
 
+#define mins_to_display(mins) (((mins) / 60) * 100) + ((mins) % 60)
+#define millis_to_display(ms) round((ms)/60000.0f)
 
 enum TIMER_STATE {
     SELECT_TIME,
@@ -15,19 +17,22 @@ enum TIMER_STATE {
 class TimerHandler
 { // handles the time display and rotary encoder
     private:
-        int timer_minutes;
-        unsigned start_time;
+        unsigned long start_time;
+        unsigned long end_time;
+        unsigned long time_left;
+
+        unsigned long last_blink_ms;
+        long last_enc_pos;
 
         const int *display_pins;
         uint8_t display_brightness;
+        unsigned long *blink_ms;
+        unsigned long display_update_ms;
+
+        unsigned long button_threshold;
         bool invert_direction;
         
         bool blink_state;
-        unsigned long last_blink;
-        unsigned long *blink_delay;
-
-        unsigned long button_threshold;
-        int old_encoder_pos;
         bool button_pressed;
 
     public:
@@ -35,14 +40,15 @@ class TimerHandler
         RotaryEncoder *enc;
         TIMER_STATE state;
 
+        int timer_minutes;
         const int *encoder_pins;
 
-        TimerHandler(const int *enc_pins, bool invert_direction, const int *disp_pins, unsigned long button_threshold, unsigned long *blink_delay, uint8_t display_brightness);
+        TimerHandler(const int *enc_pins, bool invert_direction, unsigned long button_threshold, const int *disp_pins, unsigned long *blink_ms, uint8_t display_brightness);
         void init(void (*encoder_func)());
-        void displayMinutes(int num, bool dots, bool leading_zeroes);
+        void updateDisplay();
         void tick();
-        void resetTimer();
-        void setBlinkDelay(unsigned long *blink_delay);
+        void resetEncoder();
+        void setBlinkDelay(unsigned long *blink_ms);
         void setDisplayBrightness(uint8_t);
 };
 

@@ -191,20 +191,22 @@ void SandSimulation::init()
 
 void SandSimulation::updateField()
 {
-  for (int i = 0; i < active_i; i++)
-  {
-    bool sublayer[] = {false, false, false};
-    if (testForRoom(i, sublayer))
-    { // if there is room for the grain to fall
-      moveGrain(i, sublayer);
-    }
-    else
+  if (active_i > 0){
+    for (int i = 0; i < active_i; i++)
     {
-      lockGrain(i);
-      i--;
+      bool sublayer[] = {false, false, false};
+      if (testForRoom(i, sublayer))
+      { // if there is room for the grain to fall
+        moveGrain(i, sublayer);
+      }
+      else
+      {
+        lockGrain(i);
+        i--;
+      }
     }
+    ledmat->update();
   }
-  ledmat->update();
 }
 
 void SandSimulation::testDims()
@@ -325,6 +327,19 @@ bool SandSimulation::testForRoom(int index, bool *sublayer)
   return !(sublayer[0] && sublayer[1] && sublayer[2]);
 }
 
+unsigned long SandSimulation::calculateHourglassSpawnTime(unsigned long minutes)
+{
+  int grains = 0;
+  for (uint8_t y = y_start; y <= y_stop; y++){
+    for (uint16_t x = 0; x < FIELD_SIZE; x++)
+    {
+      if(!getBit(constraints,x,y))
+        grains++;
+    }
+  }
+  return (minutes*60000/grains);
+}
+
 void SandSimulation::tickFillUpperHalf(unsigned long *last_update, unsigned long *last_spawn)
 {
   if (millis() - *last_update >= ms_screen_update || *last_update == 0)
@@ -350,22 +365,23 @@ void SandSimulation::tickFillUpperHalf(unsigned long *last_update, unsigned long
 
 void SandSimulation::tickHourglass(unsigned long *last_update, unsigned long *last_spawn)
 {
-  if (millis() - *last_update >= ms_screen_update || last_update == 0)
+  unsigned long current_time = millis();
+  if (current_time - *last_update >= ms_screen_update || last_update == 0)
   {
     uint8_t oldSREG = SREG;
     cli();
 
-    *last_update = millis();
+    *last_update = current_time;
     updateField();
 
     SREG = oldSREG;
   }
-  if (millis() - *last_spawn >= ms_grain_spawn || last_spawn == 0)
+  if (current_time - *last_spawn >= ms_grain_spawn || last_spawn == 0)
   {
     uint8_t oldSREG = SREG;
     cli();
 
-    *last_spawn = millis();
+    *last_spawn = current_time;
     spawnGrainInRegion((FIELD_SIZE / 2) - 1, FIELD_SIZE / 2);
     removeGrainFromRegion(0, FIELD_SIZE - 1);
 

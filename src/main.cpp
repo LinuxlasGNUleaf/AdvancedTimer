@@ -41,10 +41,10 @@ bool invert_direction = true;
 //==========>> SETTINGS <<==========
 const int disp_intensity = 1;
 
-const unsigned long spawn_interval = 75;
-const unsigned long update_interval = 25;
+const unsigned long spawn_ms = 75;
+const unsigned long update_ms = 25;
 
-unsigned long blink_delay[] = {666, 333};
+unsigned long blink_ms[] = {927, 573};
 uint8_t display_brightness = 3;
 unsigned long button_threshold = 1500;
 //=============================================
@@ -53,7 +53,7 @@ unsigned long button_threshold = 1500;
  * ====================>> OBJECTS AND FUNCTIONS <<====================
 */
 
-TimerHandler time_handler = TimerHandler(enc_pins, invert_direction, disp_pins, button_threshold, blink_delay, display_brightness);
+TimerHandler time_handler = TimerHandler(enc_pins, invert_direction, button_threshold, disp_pins, blink_ms, display_brightness);
 SandSimulation sand_sim = SandSimulation(mat_type, spi_bus, mat_count, constraints);
 
 void tickPosition()
@@ -72,17 +72,15 @@ void setup()
 
   // fill upper half of hourglass
   sand_sim.setIntensity(disp_intensity);
-  sand_sim.setUpdateIntervals(update_interval, spawn_interval);
-
-  
+  sand_sim.setUpdateIntervals(update_ms, spawn_ms);
   sand_sim.setYRange(0, FIELD_SIZE);
+
   unsigned long last_update = 0;
   unsigned long last_spawn = 0;
   while (!sand_sim.is_full){
     sand_sim.tickFillUpperHalf(&last_update, &last_spawn);
     time_handler.tick();
   }
-  sand_sim.setYRange(FIELD_SIZE, 2 * FIELD_SIZE);
 }
 
 unsigned long last_update = 0;
@@ -92,9 +90,14 @@ void loop()
   while (time_handler.state == SELECT_TIME){
       time_handler.tick();
   }
+  unsigned long hourglass_spawn_delay = sand_sim.calculateHourglassSpawnTime(time_handler.timer_minutes);
+  sand_sim.setUpdateIntervals(update_ms, hourglass_spawn_delay);
+  sand_sim.setYRange(FIELD_SIZE, 2 * FIELD_SIZE);
+
   while(!digitalRead(time_handler.encoder_pins[2]));
   while(!sand_sim.is_full){
     sand_sim.tickHourglass(&last_update, &last_spawn);
     time_handler.tick();
   }
+  while(1);
 }
