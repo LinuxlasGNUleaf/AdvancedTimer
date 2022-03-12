@@ -35,8 +35,11 @@ class TimerHandler
         bool blink_state;
         bool button_pressed;
 
-    public:
         TM1637Display *seg_display;
+
+        void encode_num(int num, uint8_t *segments);
+
+    public:
         RotaryEncoder *enc;
         TIMER_STATE state;
 

@@ -14,6 +14,14 @@ const uint8_t SEG_CONT[] = {
     SEG_B | SEG_C | SEG_D,
 	};
 
+void TimerHandler::encode_num(int num, uint8_t *segments){
+    for (int i = 3; i >= 0; i--)
+    {
+        segments[i] = seg_display->encodeDigit(num % ((num/10)*10));
+        num /= 10;
+    }
+}
+
 TimerHandler::TimerHandler(const int *enc_pins, bool invert_direction, unsigned long button_threshold, const int *disp_pins, unsigned long *blink_ms, uint8_t display_brightness)
 {
     this->encoder_pins = enc_pins;
@@ -60,32 +68,36 @@ void TimerHandler::updateDisplay()
     bool dots;
     int disp_num;
 
+    uint8_t segments[4];
+
     switch (state)
     {
     case SELECT_TIME:
         power = blink_state;
         dots = blink_state;
         disp_num = mins_to_display(abs(enc->getPosition()));
+        encode_num(disp_num, segments);
         break;
     case RUNNING:
         power = true;
         dots = blink_state;
         disp_num = millis_to_display(end_time-millis());
+        encode_num(disp_num, segments);
         break;
+    case PAUSED:
+        power = true;
+        dots = false;
+        for (int i = 0; i < 4; i++)
+            segments[i] = (enc->getPosition() % 2)?SEG_CONT[i]:SEG_STOP[i];
     default:
         break;
     }
 
-    Serial.print(disp_num);
-    Serial.print(" ");
-    Serial.print(dots);
-    Serial.print(" ");
-    Serial.print(display_brightness);
-    Serial.print(" ");
-    Serial.println(power);
+    if (dots)
+        segments[1] |= SEG_DP;
 
     seg_display->setBrightness(display_brightness, power);
-    seg_display->showNumberDecEx(disp_num, dots?(0b01000000):0b00000000, true, 4, 0);
+    seg_display->setSegments(segments,4,0);
 }
 
 void TimerHandler::tick()
