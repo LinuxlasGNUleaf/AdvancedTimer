@@ -18,8 +18,7 @@ const uint8_t SEG_END[4] = {
     SEG_A | SEG_D | SEG_E | SEG_F | SEG_G,
     SEG_C | SEG_E | SEG_G,
     SEG_B | SEG_C | SEG_D | SEG_E | SEG_G,
-    0
-};
+    0};
 
 void (*resetFunc)(void) = 0;
 
@@ -32,22 +31,33 @@ void TimerHandler::encode_num(int num, uint8_t *segments)
     }
 }
 
-TimerHandler::TimerHandler(const int *enc_pins, bool invert_direction, unsigned long button_threshold, const int *disp_pins, unsigned long *blink_ms, uint8_t display_brightness)
+TimerHandler::TimerHandler(const int *enc_pins, bool invert_direction, unsigned long button_threshold,
+                           const int *disp_pins, unsigned long *blink_ms, uint8_t display_brightness,
+                           int buzzer_pin, int frequency, int buzz_duration, bool buzz_on_enc_change, bool buzz_on_finish)
 {
+    // encoder settings
     this->encoder_pins = enc_pins;
     this->invert_direction = invert_direction;
     this->button_threshold = button_threshold;
 
+    // display settings
     this->display_pins = disp_pins;
     this->blink_ms = blink_ms;
     this->display_update_ms = display_update_ms;
     this->display_brightness = display_brightness;
 
+    // buzzer settings
+    this->buzzer_pin = buzzer_pin;
+    this->frequency = frequency;
+    this->buzz_duration = buzz_duration;
+    this->buzz_on_enc_change = buzz_on_enc_change;
+    this->buzz_on_finish = buzz_on_finish;
+
+    //initialization
     this->state = SELECT_TIME;
     this->last_blink_ms = 0;
     this->last_enc_pos = 0;
     this->timer_minutes = 0;
-
     this->blink_state = false;
     this->button_previously_pressed = false;
 }
@@ -106,6 +116,10 @@ void TimerHandler::updateDisplay()
     seg_display->setBrightness(display_brightness, power);
     seg_display->setSegments(segments, 4, 0);
 }
+void TimerHandler::beepBuzzer(int duration)
+{
+    tone(buzzer_pin, frequency, duration);
+}
 
 void TimerHandler::tick()
 {
@@ -119,12 +133,16 @@ void TimerHandler::tick()
         if ((invert_direction && enc->getPosition() > 0) || (!invert_direction && enc->getPosition() < 0))
             enc->setPosition(0);
         last_enc_pos = enc->getPosition();
+        if (buzz_on_enc_change)
+            beepBuzzer(buzz_duration);
         updateDisplay();
     }
     if ((blink_state && (current_time - last_blink_ms >= blink_ms[0])) || (!blink_state && (current_time - last_blink_ms >= blink_ms[1])))
     {
         blink_state = !blink_state;
         last_blink_ms = current_time;
+        if(blink_state && state==FINISHED)
+            beepBuzzer(buzz_duration*4);
         updateDisplay();
     }
 
@@ -195,6 +213,8 @@ void TimerHandler::tick()
     }
     else
     { //button pressed
+        if (buzz_on_enc_change && !button_previously_pressed)
+            beepBuzzer(buzz_duration);
         button_previously_pressed = true;
     }
 }
