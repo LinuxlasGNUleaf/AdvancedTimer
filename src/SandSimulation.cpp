@@ -344,47 +344,28 @@ void SandSimulation::tickFillUpperHalf(unsigned long *last_update, unsigned long
 {
   if (millis() - *last_update >= ms_screen_update || *last_update == 0)
   {
-    uint8_t oldSREG = SREG;
-    cli();
-
     *last_update = millis();
     this->updateField();
-
-    SREG = oldSREG;
   }
   if (millis() - *last_spawn >= ms_grain_spawn || *last_spawn == 0)
   {
-    uint8_t oldSREG = SREG;
-    cli();
-
     *last_spawn = millis();
     this->spawnGrainInRegion(0, 7);
-    SREG = oldSREG;
   }
 }
 
-void SandSimulation::tickHourglass(unsigned long *last_update, unsigned long *last_spawn)
+void SandSimulation::tickHourglass(unsigned long *last_update, unsigned long *last_spawn, TIMER_STATE timer_state)
 {
   unsigned long current_time = millis();
   if (current_time - *last_update >= ms_screen_update || last_update == 0)
   {
-    uint8_t oldSREG = SREG;
-    cli();
-
     *last_update = current_time;
     updateField();
-
-    SREG = oldSREG;
   }
-  if (current_time - *last_spawn >= ms_grain_spawn || last_spawn == 0)
+  if ((current_time - *last_spawn >= ms_grain_spawn || last_spawn == 0) && timer_state != PAUSED)
   {
-    uint8_t oldSREG = SREG;
-    cli();
-
     *last_spawn = current_time;
     spawnGrainInRegion((FIELD_SIZE / 2) - 1, FIELD_SIZE / 2);
     removeGrainFromRegion(0, FIELD_SIZE - 1);
-
-    SREG = oldSREG;
   }
 }

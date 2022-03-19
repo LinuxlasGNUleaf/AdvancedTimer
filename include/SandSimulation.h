@@ -2,6 +2,7 @@
 #define SAND_SIM
 
 #include "MD_MAX72xx.h"
+#include <TimerHandler.h>
 #define FIELD_SIZE 8
 
 
@@ -50,7 +51,7 @@ public:
     void spawnGrainInRegion(int x_start = 0, int x_end = FIELD_SIZE-1);
     void removeGrainFromRegion(int y_start, int y_end);
     void tickFillUpperHalf(unsigned long *last_update, unsigned long *last_grain_spawn);
-    void tickHourglass(unsigned long *last_update, unsigned long *last_grain_spawn);
+    void tickHourglass(unsigned long *last_update, unsigned long *last_grain_spawn, TIMER_STATE timer_state);
 };
 
 #endif

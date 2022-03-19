@@ -5,14 +5,13 @@
 #include <TM1637Display.h>
 
 #define mins_to_display(mins) (((mins) / 60) * 100) + ((mins) % 60)
-#define millis_to_display(ms) round((ms)/60000.0f)
+#define millis_to_display(ms) mins_to_display(round((ms)/60000.0f))
 
 enum TIMER_STATE {
     SELECT_TIME,
     RUNNING,
     PAUSED,
-    FINISHED,
-    STOPPED
+    FINISHED
 };
 
 class TimerHandler
@@ -20,7 +19,7 @@ class TimerHandler
     private:
         unsigned long start_time;
         unsigned long end_time;
-        unsigned long time_left;
+        unsigned long remaining_time;
 
         unsigned long last_blink_ms;
         long last_enc_pos;
