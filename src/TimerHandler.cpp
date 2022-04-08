@@ -83,8 +83,8 @@ void TimerHandler::updateDisplay()
     switch (state)
     {
     case SELECT_TIME:
-        power = blink_state;
-        dots = blink_state;
+        power = blink_state || last_enc_pos != 0;
+        dots = power;
         disp_num = mins_to_display(abs(last_enc_pos));
         encode_num(disp_num, segments);
         break;
