@@ -22,6 +22,36 @@ const uint8_t SEG_END[4] = {
 
 void (*resetFunc)(void) = 0;
 
+void rotateSegments(uint8_t *segments)
+{
+    Serial.println(sizeof(segments));
+    // rotate individual segments
+    for (int i = 0; i < 4; i++)
+    {
+        uint8_t old_segment = segments[i];
+        for (int j = 0; j < 6; j++)
+        {
+            int new_j = (j + 3) % 6;
+            if (1 & (old_segment >> j))
+            { // if bit is set
+                segments[i] |= 1 << new_j;
+            }
+            else
+            {
+                segments[i] &= ~(1 << new_j);
+            }
+        }
+    }
+
+    // flip segments horizontally
+    for (int i = 0; i < 2; i++)
+    {
+        uint8_t temp = segments[i];
+        segments[i] = segments[3 - i];
+        segments[3 - i] = temp;
+    }
+}
+
 void TimerHandler::encode_num(int num, uint8_t *segments)
 {
     for (int i = 3; i >= 0; i--)
@@ -31,8 +61,8 @@ void TimerHandler::encode_num(int num, uint8_t *segments)
     }
 }
 
-TimerHandler::TimerHandler(const int *enc_pins, bool invert_direction, unsigned long button_threshold,
-                           const int *disp_pins, unsigned long *blink_ms, uint8_t display_brightness,
+TimerHandler::TimerHandler(const int *enc_pins, RotaryEncoder::LatchMode latch_mode, bool invert_direction, unsigned long button_threshold,
+                           const int *disp_pins, unsigned long *blink_ms, uint8_t display_brightness, bool is_rotated,
                            int buzzer_pin, int frequency, int buzz_duration, bool buzz_on_enc_change, bool buzz_on_finish)
 {
     // encoder settings
@@ -42,9 +72,11 @@ TimerHandler::TimerHandler(const int *enc_pins, bool invert_direction, unsigned 
 
     // display settings
     this->display_pins = disp_pins;
+    this->latch_mode = latch_mode;
     this->blink_ms = blink_ms;
     this->display_update_ms = display_update_ms;
     this->display_brightness = display_brightness;
+    this->is_rotated = is_rotated;
 
     // buzzer settings
     this->buzzer_pin = buzzer_pin;
@@ -53,7 +85,7 @@ TimerHandler::TimerHandler(const int *enc_pins, bool invert_direction, unsigned 
     this->buzz_on_enc_change = buzz_on_enc_change;
     this->buzz_on_finish = buzz_on_finish;
 
-    //initialization
+    // initialization
     this->state = SELECT_TIME;
     this->last_blink_ms = 0;
     this->last_enc_pos = 0;
@@ -64,7 +96,7 @@ TimerHandler::TimerHandler(const int *enc_pins, bool invert_direction, unsigned 
 
 void TimerHandler::init(void (*encoder_func)())
 {
-    enc = new RotaryEncoder(encoder_pins[0], encoder_pins[1], RotaryEncoder::LatchMode::FOUR3);
+    enc = new RotaryEncoder(encoder_pins[0], encoder_pins[1], latch_mode);
     seg_display = new TM1637Display(display_pins[0], display_pins[1]);
 
     pinMode(encoder_pins[2], INPUT_PULLUP);
@@ -109,6 +141,8 @@ void TimerHandler::updateDisplay()
     default:
         break;
     }
+    if (is_rotated)
+        rotateSegments(segments);
 
     if (dots)
         segments[1] |= SEG_DP;
@@ -141,13 +175,13 @@ void TimerHandler::tick()
     {
         blink_state = !blink_state;
         last_blink_ms = current_time;
-        if(blink_state && state==FINISHED)
-            beepBuzzer(buzz_duration*4);
+        if (blink_state && state == FINISHED)
+            beepBuzzer(buzz_duration * 4);
         updateDisplay();
     }
 
     if (digitalRead(encoder_pins[2]))
-    { //button not pressed
+    { // button not pressed
         if (wait_for_button_released)
         { // button release flag was set
             wait_for_button_released = false;
@@ -160,8 +194,8 @@ void TimerHandler::tick()
             {
             case SELECT_TIME:
                 /*
-                * Time selected, if time valid set state to RUNNING and calculate end time
-                */
+                 * Time selected, if time valid set state to RUNNING and calculate end time
+                 */
                 if (last_enc_pos == 0)
                 {
                     wait_for_button_released = true;
@@ -175,15 +209,15 @@ void TimerHandler::tick()
 
             case RUNNING:
                 /*
-                * Pause issued, save remaining time and set state to PAUSED
-                */
+                 * Pause issued, save remaining time and set state to PAUSED
+                 */
                 remaining_time = end_time - current_time;
                 state = PAUSED;
                 break;
             case PAUSED:
                 /*
-                * Pause ended, either resume or reset Arduino 
-                */
+                 * Pause ended, either resume or reset Arduino
+                 */
                 if (last_enc_pos % 2)
                 { // STOP selected
                     resetFunc();
@@ -197,8 +231,8 @@ void TimerHandler::tick()
                 break;
             case FINISHED:
                 /*
-                * Timer stopped and button pressed, reset Arduino
-                */
+                 * Timer stopped and button pressed, reset Arduino
+                 */
                 resetFunc();
                 break;
             default:
@@ -212,7 +246,7 @@ void TimerHandler::tick()
         }
     }
     else
-    { //button pressed
+    { // button pressed
         if (buzz_on_enc_change && !button_previously_pressed)
             beepBuzzer(buzz_duration);
         button_previously_pressed = true;

@@ -15,6 +15,9 @@ enum TIMER_STATE
     FINISHED
 };
 
+
+void rotateSegments(uint8_t* segments);
+
 class TimerHandler
 { // handles the time display and rotary encoder
 private:
@@ -25,10 +28,13 @@ private:
     unsigned long last_blink_ms;
     long last_enc_pos;
 
+    RotaryEncoder::LatchMode latch_mode;
+
     const int *display_pins;
     uint8_t display_brightness;
     unsigned long *blink_ms;
     unsigned long display_update_ms;
+    bool is_rotated;
 
     int buzzer_pin;
     int frequency;
@@ -47,6 +53,7 @@ private:
 
     void encode_num(int num, uint8_t *segments);
 
+
 public:
     RotaryEncoder *enc;
     TIMER_STATE state;
@@ -54,8 +61,8 @@ public:
     int timer_minutes;
     const int *encoder_pins;
 
-    TimerHandler(const int *enc_pins, bool invert_direction, unsigned long button_threshold,
-                 const int *disp_pins, unsigned long *blink_ms, uint8_t display_brightness,
+    TimerHandler(const int *enc_pins, RotaryEncoder::LatchMode latch_mode, bool invert_direction, unsigned long button_threshold,
+                 const int *disp_pins, unsigned long *blink_ms, uint8_t display_brightness, bool is_rotated,
                  const int buzzer_pin, const int frequency, const int buzz_duration, const bool buzz_on_enc_change, const bool buzz_on_finish);
     void init(void (*encoder_func)());
     void updateDisplay();

@@ -32,7 +32,9 @@ uint16_t constraints[] = {
 //==========>> TIMER SETTINGS <<==========
 // display pins: CLK, DIO
 const int disp_pins[] = {8, 9};
-// rotary encoder: CLK, DT, LatchMode
+bool is_rotated = true;
+
+// rotary encoder: CLK, DT, SW
 const int enc_pins[] = {2, 3, 4};
 const RotaryEncoder::LatchMode mode = RotaryEncoder::LatchMode::FOUR3;
 bool invert_direction = true;
@@ -64,7 +66,7 @@ unsigned long button_threshold = 1500;
  * ====================>> OBJECTS AND FUNCTIONS <<====================
 */
 
-TimerHandler time_handler = TimerHandler(enc_pins, invert_direction, button_threshold, disp_pins, blink_ms, display_brightness, buzzer_pin, frequency, buzz_duration, buzz_on_enc_change, buzz_on_finish);
+TimerHandler time_handler = TimerHandler(enc_pins, mode, invert_direction, button_threshold, disp_pins, blink_ms, display_brightness, is_rotated, buzzer_pin, frequency, buzz_duration, buzz_on_enc_change, buzz_on_finish);
 SandSimulation sand_sim = SandSimulation(mat_type, spi_bus, mat_count, constraints);
 
 void tickPosition()

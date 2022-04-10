@@ -95,9 +95,9 @@ bool SandSimulation::getBit(uint16_t *field, int x, int y)
 void SandSimulation::setBit(int x, int y, bool val)
 {
   if (val)
-    field[x] = (field[x] | (1 << y));
+    field[x] |= (1 << y);
   else
-    field[x] = (field[x] & (~(1 << y)));
+    field[x] &= ~(1 << y);
 
   transformXY(&x, &y);
   ledmat->setPoint(y, x, val);
