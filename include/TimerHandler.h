@@ -3,6 +3,7 @@
 
 #include <RotaryEncoder.h>
 #include <TM1637Display.h>
+#include "ezBuzzer.h"
 
 #define mins_to_display(mins) (((mins) / 60) * 100) + ((mins) % 60)
 #define millis_to_display(ms) mins_to_display(round((ms) / 60000.0f))
@@ -39,8 +40,12 @@ private:
     int buzzer_pin;
     int frequency;
     int buzz_duration;
-    bool buzz_on_enc_change;
+    bool buzz_on_turn;
     bool buzz_on_finish;
+    int *melody;
+    int *note_durations;
+
+    ezBuzzer *melody_buzzer;
 
     unsigned long button_threshold;
     bool invert_direction;
@@ -63,7 +68,7 @@ public:
 
     TimerHandler(const int *enc_pins, RotaryEncoder::LatchMode latch_mode, bool invert_direction, unsigned long button_threshold,
                  const int *disp_pins, unsigned long *blink_ms, uint8_t display_brightness, bool is_rotated,
-                 const int buzzer_pin, const int frequency, const int buzz_duration, const bool buzz_on_enc_change, const bool buzz_on_finish);
+                 const int buzzer_pin, const int frequency, const int buzz_duration, const bool buzz_on_turn, const bool buzz_on_finish, int *melody, int *note_durations);
     void init(void (*encoder_func)());
     void updateDisplay();
     void tick();

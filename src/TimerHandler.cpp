@@ -63,7 +63,7 @@ void TimerHandler::encode_num(int num, uint8_t *segments)
 
 TimerHandler::TimerHandler(const int *enc_pins, RotaryEncoder::LatchMode latch_mode, bool invert_direction, unsigned long button_threshold,
                            const int *disp_pins, unsigned long *blink_ms, uint8_t display_brightness, bool is_rotated,
-                           int buzzer_pin, int frequency, int buzz_duration, bool buzz_on_enc_change, bool buzz_on_finish)
+                           int buzzer_pin, int frequency, int buzz_duration, bool buzz_on_turn, bool buzz_on_finish, int *melody, int *note_durations)
 {
     // encoder settings
     this->encoder_pins = enc_pins;
@@ -82,8 +82,11 @@ TimerHandler::TimerHandler(const int *enc_pins, RotaryEncoder::LatchMode latch_m
     this->buzzer_pin = buzzer_pin;
     this->frequency = frequency;
     this->buzz_duration = buzz_duration;
-    this->buzz_on_enc_change = buzz_on_enc_change;
+    this->buzz_on_turn = buzz_on_turn;
     this->buzz_on_finish = buzz_on_finish;
+
+    this->melody = melody;
+    this->note_durations = note_durations;
 
     // initialization
     this->state = SELECT_TIME;
@@ -102,6 +105,8 @@ void TimerHandler::init(void (*encoder_func)())
     pinMode(encoder_pins[2], INPUT_PULLUP);
     attachInterrupt(digitalPinToInterrupt(encoder_pins[0]), encoder_func, CHANGE);
     attachInterrupt(digitalPinToInterrupt(encoder_pins[1]), encoder_func, CHANGE);
+
+    melody_buzzer = new ezBuzzer(buzzer_pin);
 }
 
 void TimerHandler::updateDisplay()
@@ -157,6 +162,7 @@ void TimerHandler::beepBuzzer(int duration)
 
 void TimerHandler::tick()
 {
+    melody_buzzer->loop();
     unsigned long current_time = millis();
 
     if (state == RUNNING && current_time > end_time)
@@ -167,7 +173,7 @@ void TimerHandler::tick()
         if ((invert_direction && enc->getPosition() > 0) || (!invert_direction && enc->getPosition() < 0))
             enc->setPosition(0);
         last_enc_pos = enc->getPosition();
-        if (buzz_on_enc_change)
+        if (buzz_on_turn)
             beepBuzzer(buzz_duration);
         updateDisplay();
     }
@@ -175,8 +181,8 @@ void TimerHandler::tick()
     {
         blink_state = !blink_state;
         last_blink_ms = current_time;
-        if (blink_state && state == FINISHED)
-            beepBuzzer(buzz_duration * 4);
+        if (buzz_on_finish && state == FINISHED && melody_buzzer->getState() == BUZZER_IDLE)
+            melody_buzzer->playMelody(melody, note_durations, 26);
         updateDisplay();
     }
 
@@ -233,6 +239,7 @@ void TimerHandler::tick()
                 /*
                  * Timer stopped and button pressed, reset Arduino
                  */
+                melody_buzzer->stop();
                 resetFunc();
                 break;
             default:
@@ -247,7 +254,7 @@ void TimerHandler::tick()
     }
     else
     { // button pressed
-        if (buzz_on_enc_change && !button_previously_pressed)
+        if (buzz_on_turn && !button_previously_pressed)
             beepBuzzer(buzz_duration);
         button_previously_pressed = true;
     }

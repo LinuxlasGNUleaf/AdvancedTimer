@@ -8,7 +8,7 @@
 
 /*
  * ====================>> CONSTANTS <<====================
-*/
+ */
 
 //==========>> SAND SIMULATION <<==========
 // spi_bus: DIO, CLK, CS
@@ -46,27 +46,41 @@ const int buzzer_pin = 7;
 const int frequency = 440;
 const int buzz_duration = 5;
 
-const bool buzz_on_enc_change = true;
+const bool buzz_on_turn = true;
 const bool buzz_on_finish = true;
+
+int melody[] = {
+    NOTE_E5, NOTE_D5, NOTE_FS4, NOTE_GS4,
+    NOTE_CS5, NOTE_B4, NOTE_D4, NOTE_E4,
+    NOTE_B4, NOTE_A4, NOTE_CS4, NOTE_E4,
+    NOTE_A4};
+
+int note_durations[] = {
+    8, 8, 4, 4,
+    8, 8, 4, 4,
+    8, 8, 4, 4,
+    2};
 
 //=========================================
 
 //==========>> SETTINGS <<==========
-const int disp_intensity = 1;
+const int disp_intensity = 0;
 
 const unsigned long spawn_ms = 75;
 const unsigned long update_ms = 25;
 
 unsigned long blink_ms[] = {927, 573};
-uint8_t display_brightness = 3;
+uint8_t display_brightness = 1;
 unsigned long button_threshold = 1500;
 //=============================================
 
 /*
  * ====================>> OBJECTS AND FUNCTIONS <<====================
-*/
+ */
 
-TimerHandler time_handler = TimerHandler(enc_pins, mode, invert_direction, button_threshold, disp_pins, blink_ms, display_brightness, is_rotated, buzzer_pin, frequency, buzz_duration, buzz_on_enc_change, buzz_on_finish);
+TimerHandler time_handler = TimerHandler(enc_pins, mode, invert_direction, button_threshold,
+                                         disp_pins, blink_ms, display_brightness, is_rotated,
+                                         buzzer_pin, frequency, buzz_duration, buzz_on_turn, buzz_on_finish, melody, note_durations);
 SandSimulation sand_sim = SandSimulation(mat_type, spi_bus, mat_count, constraints);
 
 void tickPosition()
@@ -90,7 +104,8 @@ void setup()
 
   unsigned long last_update = 0;
   unsigned long last_spawn = 0;
-  while (!sand_sim.is_full){
+  while (!sand_sim.is_full)
+  {
     sand_sim.tickFillUpperHalf(&last_update, &last_spawn);
     time_handler.tick();
   }
@@ -100,15 +115,17 @@ unsigned long last_update = 0;
 unsigned long last_spawn = 0;
 void loop()
 {
-  while (time_handler.state == SELECT_TIME){
-      time_handler.tick();
+  while (time_handler.state == SELECT_TIME)
+  {
+    time_handler.tick();
   }
   unsigned long hourglass_spawn_delay = sand_sim.calculateHourglassSpawnTime(time_handler.timer_minutes);
   sand_sim.setUpdateIntervals(update_ms, hourglass_spawn_delay);
   sand_sim.setYRange(FIELD_SIZE, 2 * FIELD_SIZE);
 
-  while(true){
+  while (true)
+  {
     sand_sim.tickHourglass(&last_update, &last_spawn, time_handler.state);
     time_handler.tick();
-  }  
+  }
 }
