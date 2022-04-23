@@ -157,7 +157,8 @@ void TimerHandler::updateDisplay()
 }
 void TimerHandler::beepBuzzer(int duration)
 {
-    tone(buzzer_pin, frequency, duration);
+    if (melody_buzzer->getState() == BUZZER_IDLE)
+        tone(buzzer_pin, frequency, duration);
 }
 
 void TimerHandler::tick()
