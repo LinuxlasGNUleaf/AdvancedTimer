@@ -61,6 +61,8 @@ int note_durations[] = {
     8, 8, 4, 4,
     2};
 
+int melody_length = sizeof(melody) / sizeof(melody[0]);
+
 //=========================================
 
 //==========>> SETTINGS <<==========
@@ -80,7 +82,7 @@ unsigned long button_threshold = 1500;
 
 TimerHandler time_handler = TimerHandler(enc_pins, mode, invert_direction, button_threshold,
                                          disp_pins, blink_ms, display_brightness, is_rotated,
-                                         buzzer_pin, frequency, buzz_duration, buzz_on_turn, buzz_on_finish, melody, note_durations);
+                                         buzzer_pin, frequency, buzz_duration, buzz_on_turn, buzz_on_finish, melody, note_durations, melody_length);
 SandSimulation sand_sim = SandSimulation(mat_type, spi_bus, mat_count, constraints);
 
 void tickPosition()
@@ -91,7 +93,6 @@ void tickPosition()
 void setup()
 {
   randomSeed(analogRead(0));
-  Serial.begin(9600);
 
   // initialize objects & attach interrupts
   time_handler.init(tickPosition);

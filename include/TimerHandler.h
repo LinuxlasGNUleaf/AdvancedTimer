@@ -44,6 +44,7 @@ private:
     bool buzz_on_finish;
     int *melody;
     int *note_durations;
+    int melody_length;
 
     ezBuzzer *melody_buzzer;
 
@@ -68,7 +69,7 @@ public:
 
     TimerHandler(const int *enc_pins, RotaryEncoder::LatchMode latch_mode, bool invert_direction, unsigned long button_threshold,
                  const int *disp_pins, unsigned long *blink_ms, uint8_t display_brightness, bool is_rotated,
-                 const int buzzer_pin, const int frequency, const int buzz_duration, const bool buzz_on_turn, const bool buzz_on_finish, int *melody, int *note_durations);
+                 const int buzzer_pin, const int frequency, const int buzz_duration, const bool buzz_on_turn, const bool buzz_on_finish, int *melody, int *note_durations, int melody_length);
     void init(void (*encoder_func)());
     void updateDisplay();
     void tick();

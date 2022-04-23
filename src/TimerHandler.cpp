@@ -24,7 +24,6 @@ void (*resetFunc)(void) = 0;
 
 void rotateSegments(uint8_t *segments)
 {
-    Serial.println(sizeof(segments));
     // rotate individual segments
     for (int i = 0; i < 4; i++)
     {
@@ -63,7 +62,7 @@ void TimerHandler::encode_num(int num, uint8_t *segments)
 
 TimerHandler::TimerHandler(const int *enc_pins, RotaryEncoder::LatchMode latch_mode, bool invert_direction, unsigned long button_threshold,
                            const int *disp_pins, unsigned long *blink_ms, uint8_t display_brightness, bool is_rotated,
-                           int buzzer_pin, int frequency, int buzz_duration, bool buzz_on_turn, bool buzz_on_finish, int *melody, int *note_durations)
+                           int buzzer_pin, int frequency, int buzz_duration, bool buzz_on_turn, bool buzz_on_finish, int *melody, int *note_durations, int melody_length)
 {
     // encoder settings
     this->encoder_pins = enc_pins;
@@ -84,6 +83,7 @@ TimerHandler::TimerHandler(const int *enc_pins, RotaryEncoder::LatchMode latch_m
     this->buzz_duration = buzz_duration;
     this->buzz_on_turn = buzz_on_turn;
     this->buzz_on_finish = buzz_on_finish;
+    this->melody_length = melody_length;
 
     this->melody = melody;
     this->note_durations = note_durations;
@@ -183,7 +183,7 @@ void TimerHandler::tick()
         blink_state = !blink_state;
         last_blink_ms = current_time;
         if (buzz_on_finish && state == FINISHED && melody_buzzer->getState() == BUZZER_IDLE)
-            melody_buzzer->playMelody(melody, note_durations, 26);
+            melody_buzzer->playMelody(melody, note_durations, melody_length);
         updateDisplay();
     }
 
