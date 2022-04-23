@@ -32,36 +32,36 @@ uint16_t constraints[] = {
 //==========>> TIMER SETTINGS <<==========
 // display pins: CLK, DIO
 const int disp_pins[] = {8, 9};
-bool is_rotated = true;
+bool display_rotated = true;
 
 // rotary encoder: CLK, DT, SW
 const int enc_pins[] = {2, 3, 4};
-const RotaryEncoder::LatchMode mode = RotaryEncoder::LatchMode::FOUR3;
-bool invert_direction = true;
+const RotaryEncoder::LatchMode enc_latch_mode = RotaryEncoder::LatchMode::FOUR3;
+bool enc_invert_direction = true;
 //===========================================
 
 //==========>> BUZZER SETTINGS <<==========
 const int buzzer_pin = 7;
 
-const int frequency = 440;
+const int buzzer_frequency = 440;
 const int buzz_duration = 5;
 
-const bool buzz_on_turn = true;
-const bool buzz_on_finish = true;
+const bool buzzer_on_enc_action = true;
+const bool buzzer_on_finish = true;
 
-int melody[] = {
+int buzzer_melody[] = {
     NOTE_E5, NOTE_D5, NOTE_FS4, NOTE_GS4,
     NOTE_CS5, NOTE_B4, NOTE_D4, NOTE_E4,
     NOTE_B4, NOTE_A4, NOTE_CS4, NOTE_E4,
     NOTE_A4};
 
-int note_durations[] = {
+int buzzer_note_durations[] = {
     8, 8, 4, 4,
     8, 8, 4, 4,
     8, 8, 4, 4,
     2};
 
-int melody_length = sizeof(melody) / sizeof(melody[0]);
+int buzzer_melody_length = sizeof(buzzer_melody) / sizeof(buzzer_melody[0]);
 
 //=========================================
 
@@ -71,18 +71,17 @@ const int disp_intensity = 0;
 const unsigned long spawn_ms = 75;
 const unsigned long update_ms = 25;
 
-unsigned long blink_ms[] = {927, 573};
+unsigned long display_blink_ms[] = {927, 573};
 uint8_t display_brightness = 1;
-unsigned long button_threshold = 1500;
 //=============================================
 
 /*
  * ====================>> OBJECTS AND FUNCTIONS <<====================
  */
 
-TimerHandler time_handler = TimerHandler(enc_pins, mode, invert_direction, button_threshold,
-                                         disp_pins, blink_ms, display_brightness, is_rotated,
-                                         buzzer_pin, frequency, buzz_duration, buzz_on_turn, buzz_on_finish, melody, note_durations, melody_length);
+TimerHandler time_handler = TimerHandler(enc_pins, enc_latch_mode, enc_invert_direction,
+                                         disp_pins, display_blink_ms, display_brightness, display_rotated,
+                                         buzzer_pin, buzzer_frequency, buzz_duration, buzzer_on_enc_action, buzzer_on_finish, buzzer_melody, buzzer_note_durations, buzzer_melody_length);
 SandSimulation sand_sim = SandSimulation(mat_type, spi_bus, mat_count, constraints);
 
 void tickPosition()

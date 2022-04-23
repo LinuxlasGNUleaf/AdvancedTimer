@@ -29,27 +29,27 @@ private:
     unsigned long last_blink_ms;
     long last_enc_pos;
 
-    RotaryEncoder::LatchMode latch_mode;
+    RotaryEncoder::LatchMode enc_latch_mode;
 
     const int *display_pins;
     uint8_t display_brightness;
-    unsigned long *blink_ms;
+    unsigned long *display_blink_ms;
     unsigned long display_update_ms;
-    bool is_rotated;
+    bool display_rotated;
 
     int buzzer_pin;
-    int frequency;
+    int buzzer_frequency;
     int buzz_duration;
-    bool buzz_on_turn;
-    bool buzz_on_finish;
-    int *melody;
-    int *note_durations;
-    int melody_length;
+    bool buzzer_on_enc_action;
+    bool buzzer_on_finish;
+    int *buzzer_melody;
+    int *buzzer_note_durations;
+    int buzzer_melody_length;
 
     ezBuzzer *melody_buzzer;
 
     unsigned long button_threshold;
-    bool invert_direction;
+    bool enc_invert_direction;
 
     bool blink_state;
     bool button_previously_pressed;
@@ -67,13 +67,13 @@ public:
     int timer_minutes;
     const int *encoder_pins;
 
-    TimerHandler(const int *enc_pins, RotaryEncoder::LatchMode latch_mode, bool invert_direction, unsigned long button_threshold,
-                 const int *disp_pins, unsigned long *blink_ms, uint8_t display_brightness, bool is_rotated,
-                 const int buzzer_pin, const int frequency, const int buzz_duration, const bool buzz_on_turn, const bool buzz_on_finish, int *melody, int *note_durations, int melody_length);
+    TimerHandler(const int *enc_pins, RotaryEncoder::LatchMode latch_mode, bool enc_invert_direction,
+                 const int *disp_pins, unsigned long *display_blink_ms, uint8_t display_brightness, bool display_rotated,
+                 const int buzzer_pin, const int buzzer_frequency, const int buzz_duration, const bool buzzer_on_enc_action, const bool buzzer_on_finish, int *buzzer_melody, int *buzzer_note_durations, int buzzer_melody_length);
     void init(void (*encoder_func)());
     void updateDisplay();
     void tick();
-    void setBlinkDelay(unsigned long *blink_ms);
+    void setBlinkDelay(unsigned long *display_blink_ms);
     void setDisplayBrightness(uint8_t);
     void beepBuzzer(int duration);
 };
