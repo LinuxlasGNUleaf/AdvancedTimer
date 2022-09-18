@@ -31,9 +31,6 @@ private:
 
     ezBuzzer *melody_buzzer;
 
-    unsigned long button_threshold;
-    bool enc_invert_direction;
-
     bool blink_state;
     bool button_previously_pressed;
     bool wait_for_button_released;

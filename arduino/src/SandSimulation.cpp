@@ -115,6 +115,7 @@ void SandSimulation::init()
 
   ledmat->begin();
   ledmat->control(MD_MAX72XX::UPDATE, MD_MAX72XX::OFF);
+  ledmat->control(MD_MAX72XX::INTENSITY, MAT_BRIGHTNESS);
   resetField();
 }
 

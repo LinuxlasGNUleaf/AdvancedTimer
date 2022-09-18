@@ -146,7 +146,7 @@ void TimerHandler::tick()
 
     if (last_enc_pos != enc->getPosition() && digitalRead(ENC_PINS[2]))
     {
-        if ((enc_invert_direction && enc->getPosition() > 0) || (!enc_invert_direction && enc->getPosition() < 0))
+        if ((ENC_INVERT_DIRECTION && enc->getPosition() > 0) || (!ENC_INVERT_DIRECTION && enc->getPosition() < 0))
             enc->setPosition(0);
         last_enc_pos = enc->getPosition();
         if (BUZZER_DO_CLICK)
