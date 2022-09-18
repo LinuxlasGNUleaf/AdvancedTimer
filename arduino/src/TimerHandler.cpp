@@ -1,5 +1,6 @@
 #include <avr/wdt.h>
 #include "TimerHandler.h"
+#include <config.h>
 
 const uint8_t SEG_STOP[4] = {
     SEG_A | SEG_C | SEG_D | SEG_F | SEG_G,
@@ -60,33 +61,8 @@ void TimerHandler::encode_num(int num, uint8_t *segments)
     }
 }
 
-TimerHandler::TimerHandler(const int *enc_pins, RotaryEncoder::LatchMode enc_latch_mode, bool enc_invert_direction,
-                           const int *disp_pins, unsigned long *display_blink_ms, uint8_t display_brightness, bool display_rotated,
-                           int buzzer_pin, int buzzer_frequency, int buzz_duration, bool buzzer_on_enc_action, bool buzzer_on_finish, int *buzzer_melody, int *buzzer_note_durations, int buzzer_melody_length)
+TimerHandler::TimerHandler()
 {
-    // encoder settings
-    this->encoder_pins = enc_pins;
-    this->enc_invert_direction = enc_invert_direction;
-
-    // display settings
-    this->display_pins = disp_pins;
-    this->enc_latch_mode = enc_latch_mode;
-    this->display_blink_ms = display_blink_ms;
-    this->display_update_ms = display_update_ms;
-    this->display_brightness = display_brightness;
-    this->display_rotated = display_rotated;
-
-    // buzzer settings
-    this->buzzer_pin = buzzer_pin;
-    this->buzzer_frequency = buzzer_frequency;
-    this->buzz_duration = buzz_duration;
-    this->buzzer_on_enc_action = buzzer_on_enc_action;
-    this->buzzer_on_finish = buzzer_on_finish;
-    this->buzzer_melody_length = buzzer_melody_length;
-
-    this->buzzer_melody = buzzer_melody;
-    this->buzzer_note_durations = buzzer_note_durations;
-
     // initialization
     this->state = SELECT_TIME;
     this->last_blink_ms = 0;
@@ -98,14 +74,14 @@ TimerHandler::TimerHandler(const int *enc_pins, RotaryEncoder::LatchMode enc_lat
 
 void TimerHandler::init(void (*encoder_func)())
 {
-    enc = new RotaryEncoder(encoder_pins[0], encoder_pins[1], enc_latch_mode);
-    seg_display = new TM1637Display(display_pins[0], display_pins[1]);
+    enc = new RotaryEncoder(ENC_PINS[0], ENC_PINS[1], ENC_LATCH_MODE);
+    seg_display = new TM1637Display(SEG_PINS[0], SEG_PINS[1]);
 
-    pinMode(encoder_pins[2], INPUT_PULLUP);
-    attachInterrupt(digitalPinToInterrupt(encoder_pins[0]), encoder_func, CHANGE);
-    attachInterrupt(digitalPinToInterrupt(encoder_pins[1]), encoder_func, CHANGE);
+    pinMode(ENC_PINS[2], INPUT_PULLUP);
+    attachInterrupt(digitalPinToInterrupt(ENC_PINS[0]), encoder_func, CHANGE);
+    attachInterrupt(digitalPinToInterrupt(ENC_PINS[1]), encoder_func, CHANGE);
 
-    melody_buzzer = new ezBuzzer(buzzer_pin);
+    melody_buzzer = new ezBuzzer(BUZZER_PIN);
 }
 
 void TimerHandler::updateDisplay()
@@ -145,19 +121,19 @@ void TimerHandler::updateDisplay()
     default:
         break;
     }
-    if (display_rotated)
+    if (SEG_ROTATED)
         rotateSegments(segments);
 
     if (dots)
         segments[1] |= SEG_DP;
 
-    seg_display->setBrightness(display_brightness, power);
+    seg_display->setBrightness(SEG_BRIGHTNESS, power);
     seg_display->setSegments(segments, 4, 0);
 }
-void TimerHandler::beepBuzzer(int duration)
+void TimerHandler::clickBuzzer()
 {
     if (melody_buzzer->getState() == BUZZER_IDLE)
-        tone(buzzer_pin, buzzer_frequency, duration);
+        tone(BUZZER_PIN, BUZZER_CLICK_FREQ, BUZZER_CLICK_DURATION);
 }
 
 void TimerHandler::tick()
@@ -168,25 +144,25 @@ void TimerHandler::tick()
     if (state == RUNNING && current_time > end_time)
         state = FINISHED;
 
-    if (last_enc_pos != enc->getPosition() && digitalRead(encoder_pins[2]))
+    if (last_enc_pos != enc->getPosition() && digitalRead(ENC_PINS[2]))
     {
         if ((enc_invert_direction && enc->getPosition() > 0) || (!enc_invert_direction && enc->getPosition() < 0))
             enc->setPosition(0);
         last_enc_pos = enc->getPosition();
-        if (buzzer_on_enc_action)
-            beepBuzzer(buzz_duration);
+        if (BUZZER_DO_CLICK)
+            clickBuzzer();
         updateDisplay();
     }
-    if ((blink_state && (current_time - last_blink_ms >= display_blink_ms[0])) || (!blink_state && (current_time - last_blink_ms >= display_blink_ms[1])))
+    if ((blink_state && (current_time - last_blink_ms >= SEG_BLINK_DURATIONS[0])) || (!blink_state && (current_time - last_blink_ms >= SEG_BLINK_DURATIONS[1])))
     {
         blink_state = !blink_state;
         last_blink_ms = current_time;
-        if (buzzer_on_finish && state == FINISHED && melody_buzzer->getState() == BUZZER_IDLE)
-            melody_buzzer->playMelody(buzzer_melody, buzzer_note_durations, buzzer_melody_length);
+        if (BUZZER_DO_ALARM && state == FINISHED && melody_buzzer->getState() == BUZZER_IDLE)
+            melody_buzzer->playMelody(BUZZER_ALARM, BUZZER_ALARM_DURATIONS, BUZZER_ALARM_LENGTH);
         updateDisplay();
     }
 
-    if (digitalRead(encoder_pins[2]))
+    if (digitalRead(ENC_PINS[2]))
     { // button not pressed
         if (wait_for_button_released)
         { // button release flag was set
@@ -254,19 +230,8 @@ void TimerHandler::tick()
     }
     else
     { // button pressed
-        if (buzzer_on_enc_action && !button_previously_pressed)
-            beepBuzzer(buzz_duration);
+        if (BUZZER_DO_CLICK && !button_previously_pressed)
+            clickBuzzer();
         button_previously_pressed = true;
     }
-}
-
-void TimerHandler::setBlinkDelay(unsigned long *display_blink_ms)
-{
-    this->display_blink_ms = display_blink_ms;
-    this->last_blink_ms = millis();
-}
-
-void TimerHandler::setDisplayBrightness(uint8_t brightness)
-{
-    this->display_brightness = brightness;
 }

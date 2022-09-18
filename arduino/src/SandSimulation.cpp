@@ -1,78 +1,12 @@
-#include "SandSimulation.h"
-#include "Arduino.h"
+#include <SandSimulation.h>
+#include <Arduino.h>
+#include <config.h>
 
-/*
-  *   HARDWARE LAYOUT
-  *   
-  * X/Y |  15 |  14 | 13 | 12 | 11 | 10 |  9 |  8 |
-  *  ---+----+----+----+----+----+----+----+----+
-  *  0  | ▢ | ▢ | ▢ | ▢ | ▢ | ▢ | ▢ | ▢ |
-  *  1  | ▢ | ▢ | ▢ | ▢ | ▢ | ▢ | ▢ | ▢ |
-  *  2  | ▢ | ▢ | ▢ | ▢ | ▢ | ▢ | ▢ | ▢ |
-  *  3  | ▢ | ▢ | ▢ | ▢ | ▢ | ▢ | ▢ | ▢ |
-  *  4  | ▢ | ▢ | ▢ | ▢ | ▢ | ▢ | ▢ | ▢ |
-  *  5  | ▢ | ▢ | ▢ | ▢ | ▢ | ▢ | ▢ | ▢ |
-  *  6  | ▢ | ▢ | ▢ | ▢ | ▢ | ▢ | ▢ | ▢ |
-  *  7  | ▢ | ▢ | ▢ | ▢ | ▢ | ▢ | ▢ | ▢ |
-  * 
-  * X/Y |  7 |  6 |  5 |  4 |  3 |  2 |  1 |  0 |
-  *  ---+----+----+----+----+----+----+----+----+
-  *  0  | ▢ | ▢ | ▢ | ▢ | ▢ | ▢ | ▢ | ▢ |
-  *  1  | ▢ | ▢ | ▢ | ▢ | ▢ | ▢ | ▢ | ▢ |
-  *  2  | ▢ | ▢ | ▢ | ▢ | ▢ | ▢ | ▢ | ▢ |
-  *  3  | ▢ | ▢ | ▢ | ▢ | ▢ | ▢ | ▢ | ▢ |
-  *  4  | ▢ | ▢ | ▢ | ▢ | ▢ | ▢ | ▢ | ▢ |
-  *  5  | ▢ | ▢ | ▢ | ▢ | ▢ | ▢ | ▢ | ▢ |
-  *  6  | ▢ | ▢ | ▢ | ▢ | ▢ | ▢ | ▢ | ▢ |
-  *  7  | ▢ | ▢ | ▢ | ▢ | ▢ | ▢ | ▢ | ▢ |
-  * 
-  *   SOFTWARE LAYOUT
-  *   
-  * X/Y |  0 |  1 |  2 |  3 |  4 |  5 |  6 |  7 |
-  *  ---+----+----+----+----+----+----+----+----+
-  *  0  | ▢ | ▢ | ▢ | ▢ | ▢ | ▢ | ▢ | ▢ |
-  *  1  | ▢ | ▢ | ▢ | ▢ | ▢ | ▢ | ▢ | ▢ |
-  *  2  | ▢ | ▢ | ▢ | ▢ | ▢ | ▢ | ▢ | ▢ |
-  *  3  | ▢ | ▢ | ▢ | ▢ | ▢ | ▢ | ▢ | ▢ |
-  *  4  | ▢ | ▢ | ▢ | ▢ | ▢ | ▢ | ▢ | ▢ |
-  *  5  | ▢ | ▢ | ▢ | ▢ | ▢ | ▢ | ▢ | ▢ |
-  *  6  | ▢ | ▢ | ▢ | ▢ | ▢ | ▢ | ▢ | ▢ |
-  *  7  | ▢ | ▢ | ▢ | ▢ | ▢ | ▢ | ▢ | ▢ |
-  * 
-  * X/Y |  0 |  1 |  2 |  3 |  4 |  5 |  6 |  7 |
-  *  ---+----+----+----+----+----+----+----+----+
-  *  8  | ▢ | ▢ | ▢ | ▢ | ▢ | ▢ | ▢ | ▢ |
-  *  9  | ▢ | ▢ | ▢ | ▢ | ▢ | ▢ | ▢ | ▢ |
-  * 10  | ▢ | ▢ | ▢ | ▢ | ▢ | ▢ | ▢ | ▢ |
-  * 11  | ▢ | ▢ | ▢ | ▢ | ▢ | ▢ | ▢ | ▢ |
-  * 12  | ▢ | ▢ | ▢ | ▢ | ▢ | ▢ | ▢ | ▢ |
-  * 13  | ▢ | ▢ | ▢ | ▢ | ▢ | ▢ | ▢ | ▢ |
-  * 14  | ▢ | ▢ | ▢ | ▢ | ▢ | ▢ | ▢ | ▢ |
-  * 15  | ▢ | ▢ | ▢ | ▢ | ▢ | ▢ | ▢ | ▢ |
-*/
-
-void transformXY(int *x, int *y)
+SandSimulation::SandSimulation()
 {
-  if (*y < 8)
-  {
-    *x = 15 - *x;
-  }
-  else
-  {
-    *x = 7 - *x;
-    *y -= 8;
-  }
-}
-
-SandSimulation::SandSimulation(const MD_MAX72XX::moduleType_t mat_type, const int *spi_bus, const int mat_count, uint16_t *constraints)
-{
-  this->mat_type = mat_type;
-  this->spi_bus = spi_bus;
-  this->mat_count = mat_count;
-  this->constraints = constraints;
   this->active_i = 0;
   this->y_start = 0;
-  this->y_stop = (FIELD_SIZE * 2) - 1;
+  this->y_stop = (MAT_WIDTH * 2) - 1;
   this->is_full = false;
   this->is_empty = false;
 }
@@ -82,12 +16,12 @@ bool SandSimulation::getBit(uint16_t *field, int x, int y)
   /**
    * gets the bit at the specified position if position is in field.
    * returns true otherwise for convenience purposes.
-   * 
+   *
    * \param x software x-position
    * \param y software y-position
    * \return true if the bit is set, false if it isn't. Also returns true if position is undefined.
    */
-  if (y < 0 || y >= y_stop || x < 0 || x >= FIELD_SIZE)
+  if (y < 0 || y >= y_stop || x < 0 || x >= MAT_WIDTH)
     return 1;
   return (1 & (field[x] >> y));
 }
@@ -99,7 +33,7 @@ void SandSimulation::setBit(int x, int y, bool val)
   else
     field[x] &= ~(1 << y);
 
-  transformXY(&x, &y);
+  MAT_TRANSFORM_XY(&x, &y);
   ledmat->setPoint(y, x, val);
 }
 
@@ -117,10 +51,10 @@ void SandSimulation::moveGrain(int index, bool *sublayer)
 {
   int x = active[index][0];
   int y = active[index][1];
-  //remove grain from old position in field and on matrix
+  // remove grain from old position in field and on matrix
   setBit(x, y, false);
 
-  //advance y postion
+  // advance y postion
   y++;
 
   // if field directly beneath is obstructed choose path based on available options
@@ -145,7 +79,7 @@ void SandSimulation::moveGrain(int index, bool *sublayer)
 
 void SandSimulation::resetField(int y_start, int y_end)
 {
-  for (int x = 0; x < FIELD_SIZE; x++)
+  for (int x = 0; x < MAT_WIDTH; x++)
   {
     for (int y = y_start; y < y_end; y++)
     {
@@ -153,17 +87,12 @@ void SandSimulation::resetField(int y_start, int y_end)
     }
   }
 
-  for (unsigned int i = 0; i < FIELD_SIZE * FIELD_SIZE; i++)
+  for (unsigned int i = 0; i < MAT_WIDTH * MAT_WIDTH; i++)
   {
     active[i][0] = 0;
     active[i][1] = 0;
   }
   ledmat->clear();
-}
-
-void SandSimulation::setIntensity(int intensity)
-{
-  ledmat->control(MD_MAX72XX::INTENSITY, intensity);
 }
 
 void SandSimulation::setYRange(int y_start, int y_stop)
@@ -182,7 +111,7 @@ void SandSimulation::setUpdateIntervals(unsigned long ms_screen_update, unsigned
 
 void SandSimulation::init()
 {
-  ledmat = new MD_MAX72XX(mat_type, spi_bus[0], spi_bus[1], spi_bus[2], mat_count);
+  ledmat = new MD_MAX72XX(MAT_TYPE, MAT_SPI_BUS[0], MAT_SPI_BUS[1], MAT_SPI_BUS[2], MAT_MODULE_COUNT);
 
   ledmat->begin();
   ledmat->control(MD_MAX72XX::UPDATE, MD_MAX72XX::OFF);
@@ -191,7 +120,8 @@ void SandSimulation::init()
 
 void SandSimulation::updateField()
 {
-  if (active_i > 0){
+  if (active_i > 0)
+  {
     for (int i = 0; i < active_i; i++)
     {
       bool sublayer[] = {false, false, false};
@@ -212,7 +142,7 @@ void SandSimulation::updateField()
 void SandSimulation::testDims()
 {
   const int ms_delay = 50;
-  for (int i = 0; i < FIELD_SIZE * 2; i++)
+  for (int i = 0; i < MAT_WIDTH * 2; i++)
   {
     ledmat->setColumn(i, 0xff);
     ledmat->update();
@@ -228,7 +158,7 @@ void SandSimulation::testDims()
     ledmat->setColumn(i, false);
     ledmat->update();
   }
-  for (int i = 0; i < FIELD_SIZE; i++)
+  for (int i = 0; i < MAT_WIDTH; i++)
   {
     ledmat->setRow(i, 0b11111111);
     ledmat->update();
@@ -236,7 +166,7 @@ void SandSimulation::testDims()
     ledmat->setRow(i, false);
     ledmat->update();
   }
-  for (int i = FIELD_SIZE - 1; i >= 0; i--)
+  for (int i = MAT_WIDTH - 1; i >= 0; i--)
   {
     ledmat->setRow(i, 0b11111111);
     ledmat->update();
@@ -284,7 +214,7 @@ void SandSimulation::removeGrainFromRegion(int y_start, int y_end)
   for (int y = y_start; y <= y_end; y++)
   {
     int count = 0;
-    for (int x = 0; x < FIELD_SIZE; x++)
+    for (int x = 0; x < MAT_WIDTH; x++)
     {
       if (getBit(field, x, y))
         count++;
@@ -293,7 +223,7 @@ void SandSimulation::removeGrainFromRegion(int y_start, int y_end)
       continue;
 
     count = random(0, count);
-    for (int x = 0; x < FIELD_SIZE; x++)
+    for (int x = 0; x < MAT_WIDTH; x++)
     {
       if (getBit(field, x, y))
       {
@@ -321,23 +251,24 @@ bool SandSimulation::testForRoom(int index, bool *sublayer)
 
   // "1" in the sublayer means: obstructed
   // "0" in the sublayer means: free
-  sublayer[0] = getBit(field, x - 1, y + 1) || getBit(constraints, x - 1, y + 1);
-  sublayer[1] = getBit(field, x, y + 1) || getBit(constraints, x, y + 1);
-  sublayer[2] = getBit(field, x + 1, y + 1) || getBit(constraints, x + 1, y + 1);
+  sublayer[0] = getBit(field, x - 1, y + 1) || getBit(MAT_CONSTRAINTS, x - 1, y + 1);
+  sublayer[1] = getBit(field, x, y + 1) || getBit(MAT_CONSTRAINTS, x, y + 1);
+  sublayer[2] = getBit(field, x + 1, y + 1) || getBit(MAT_CONSTRAINTS, x + 1, y + 1);
   return !(sublayer[0] && sublayer[1] && sublayer[2]);
 }
 
 unsigned long SandSimulation::calculateHourglassSpawnTime(unsigned long minutes)
 {
   int grains = 0;
-  for (uint8_t y = y_start; y <= y_stop; y++){
-    for (uint16_t x = 0; x < FIELD_SIZE; x++)
+  for (uint8_t y = y_start; y <= y_stop; y++)
+  {
+    for (uint16_t x = 0; x < MAT_WIDTH; x++)
     {
-      if(!getBit(constraints,x,y))
+      if (!getBit(MAT_CONSTRAINTS, x, y))
         grains++;
     }
   }
-  return (minutes*60000/grains);
+  return (minutes * 60000 / grains);
 }
 
 void SandSimulation::tickFillUpperHalf(unsigned long *last_update, unsigned long *last_spawn)
@@ -365,7 +296,7 @@ void SandSimulation::tickHourglass(unsigned long *last_update, unsigned long *la
   if ((current_time - *last_spawn >= ms_grain_spawn || last_spawn == 0) && timer_state != PAUSED)
   {
     *last_spawn = current_time;
-    spawnGrainInRegion((FIELD_SIZE / 2) - 1, FIELD_SIZE / 2);
-    removeGrainFromRegion(0, FIELD_SIZE - 1);
+    spawnGrainInRegion((MAT_WIDTH / 2) - 1, MAT_WIDTH / 2);
+    removeGrainFromRegion(0, MAT_WIDTH - 1);
   }
 }
