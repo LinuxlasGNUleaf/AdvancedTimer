@@ -7,6 +7,20 @@
 #include <RotaryEncoder.h>
 #include <ezBuzzer.h>
 
+// ======> PREPROCESSOR MACROS
+#define DEBUG 0
+
+#if DEBUG
+#define SPRINT(msg) Serial.print(msg)
+#define SPRINTLN(msg) Serial.println(msg)
+#else
+#define SPRINT(msg)
+#define SPRINTLN(msg) 
+#endif
+
+// ======> CPP MACROS
+
+#define INTERVAL_PASSED(start_time, interval, current_time) ((start_time + interval) < current_time)
 
 // ======> HARDWARE / WIRING CONFIGURATION
 
@@ -109,8 +123,8 @@
         // ENCODER LATCH MODE
         const RotaryEncoder::LatchMode ENC_LATCH_MODE = RotaryEncoder::LatchMode::FOUR3;
         
-        // ENC INVERT DIRECTION
-        const bool ENC_INVERT_DIRECTION = true;
+        // ENCODER POSITIVE DIRECTION: CW = CLOCKWISE
+        const bool ENC_CW_IS_POSITIVE = true;
 
 
     // ==> BUZZER
@@ -122,17 +136,66 @@
 
 // ======> SOFTWARE CONFIGURATION
 
-    // ==> LED MATRIX BEHAVIOR
-        const unsigned long MAT_GRAIN_SPAWN_INTERVAL = 75;
-        const unsigned long MAT_DISP_UPDATE_INTERVAL = 25;
+    // ==> DEBUG
+        const unsigned int SERIAL_SPEED = 9600;
 
-    // ==> 7SEG DISPLAY BEHAVIOR
+    // ==> TIMER 
+        // SEGMENT ARRAY TO DISPLAY "HH:MM"
+        const uint8_t SEG_HH_MM[4] = {
+            SEG_B | SEG_C | SEG_E | SEG_F | SEG_G,
+            SEG_B | SEG_C | SEG_E | SEG_F | SEG_G,
+            SEG_A | SEG_B | SEG_C | SEG_E | SEG_F | SEG_DP,
+            SEG_A | SEG_B | SEG_C | SEG_E | SEG_F
+        };
+
+        // SEGMENT ARRAY TO DISPLAY "MM:SS"
+        const uint8_t SEG_MM_SS[4] = {
+            SEG_A | SEG_B | SEG_C | SEG_E | SEG_F,
+            SEG_A | SEG_B | SEG_C | SEG_E | SEG_F,
+            SEG_A | SEG_C | SEG_D | SEG_F | SEG_G | SEG_DP,
+            SEG_A | SEG_C | SEG_D | SEG_F | SEG_G
+        };
+        
+        
+        // SEGMENT ARRAY TO DISPLAY "S T O P"
+        const uint8_t SEG_STOP[4] = {
+            SEG_A | SEG_C | SEG_D | SEG_F | SEG_G,
+            SEG_D | SEG_E | SEG_F | SEG_G,
+            SEG_C | SEG_D | SEG_E | SEG_G,
+            SEG_A | SEG_B | SEG_E | SEG_F | SEG_G
+        };
+
+        // SEGMENT ARRAY TO DISPLAY "C O N T"
+        const uint8_t SEG_CONT[4] = {
+            SEG_A | SEG_D | SEG_E | SEG_F,
+            SEG_C | SEG_D | SEG_E | SEG_G,
+            SEG_C | SEG_E | SEG_G,
+            SEG_D | SEG_E | SEG_F | SEG_G,
+        };
+
+        // SEGMENT ARRAY TO DISPLAY "E N D  "
+        const uint8_t SEG_END[4] = {
+            SEG_A | SEG_D | SEG_E | SEG_F | SEG_G,
+            SEG_C | SEG_E | SEG_G,
+            SEG_B | SEG_C | SEG_D | SEG_E | SEG_G,
+            0
+        };
+
+
+    // ==> LED MATRIX
+        const unsigned int MAT_GRAIN_SPAWN_INTERVAL = 75;
+        const unsigned int MAT_DISP_UPDATE_INTERVAL = 25;
+
+
+    // ==> 7SEG DISPLAY
 
         // 7SEG BLINK DURATIONS: ON, OFF
-        const unsigned long SEG_BLINK_DURATIONS[] = {927, 573};
+        const unsigned int SEG_BLINK_DURATION[] = {618, 382};
+
+        const unsigned int SEG_UPDATE_INTERVAL = 40; //25 FPS
 
 
-    // ==> BUZZER ACTION
+    // ==> BUZZER
 
         // BUZZER CLICK FEEDBACK
         const bool BUZZER_DO_CLICK = true;

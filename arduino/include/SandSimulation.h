@@ -1,5 +1,5 @@
-#ifndef SAND_SIM_H
-#define SAND_SIM_H
+#ifndef SANDSIMULATION_H
+#define SANDSIMULATION_H
 
 #include <MD_MAX72xx.h>
 #include <TimerHandler.h>

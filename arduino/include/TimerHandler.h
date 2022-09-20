@@ -1,20 +1,24 @@
-#ifndef TIME_HANDLER_H
-#define TIME_HANDLER_H
+#ifndef TIMERHANDLER_H
+#define TIMERHANDLER_H
 
+#include <ezBuzzer.h>
 #include <RotaryEncoder.h>
 #include <TM1637Display.h>
-#include <ezBuzzer.h>
 #include <config.h>
-
-#define mins_to_display(mins) (((mins) / 60) * 100) + ((mins) % 60)
-#define millis_to_display(ms) mins_to_display(round((ms) / 60000.0f))
 
 enum TIMER_STATE
 {
+    SELECT_MODE,
     SELECT_TIME,
     RUNNING,
     PAUSED,
     FINISHED
+};
+
+enum TIMER_MODE
+{
+    HH_MM_MODE,
+    MM_SS_MODE
 };
 
 void rotateSegments(uint8_t* segments);
@@ -22,35 +26,53 @@ void rotateSegments(uint8_t* segments);
 class TimerHandler
 { // handles the time display and rotary encoder
 private:
-    unsigned long start_time;
-    unsigned long end_time;
-    unsigned long remaining_time;
+    // timestamps of last action
+    unsigned long timer_start_ts;
+    unsigned long last_blink_ts;
+    unsigned long last_display_update_ts;
+    unsigned long button_pressed_ts;
 
-    unsigned long last_blink_ms;
-    long last_enc_pos;
-
-    ezBuzzer *melody_buzzer;
-
+    // bool flags to keep track of actions
     bool blink_state;
     bool button_previously_pressed;
-    bool wait_for_button_released;
+    bool ignore_button_release;
+    bool editing_first_value;
 
+    // millisecond values to keep track of time
+    unsigned long remaining_ms;
+    unsigned long total_ms;
+
+    // timer values configured in the SELECT TIME state and other states
+    int timer_raw_value;
+    unsigned int timer_stored_value1;
+    unsigned int timer_stored_value2;
+
+    // library objects
+    ezBuzzer *alarm_buzzer;
     TM1637Display *seg_display;
 
-    void encode_num(int num, uint8_t *segments);
+    void encodeNumberToSegments(unsigned int num, uint8_t *segments, int start_i, int len);
+    unsigned int createDisplayLiteral(unsigned long milliseconds);
 
+    void updateDisplay();
+    void clickBuzzer();
+    unsigned long calculateRemainingMs();
 
 public:
+    // encoder library object
     RotaryEncoder *enc;
-    TIMER_STATE state;
 
-    int timer_minutes;
+    // state-machine flags
+    TIMER_STATE timer_state;
+    TIMER_MODE timer_mode;
 
     TimerHandler();
+
     void init(void (*encoder_func)());
-    void updateDisplay();
     void tick();
-    void clickBuzzer();
+    void resetTimerHandler();
+
+    float calculateTimerProgress();
 };
 
 #endif

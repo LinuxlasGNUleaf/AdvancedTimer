@@ -289,12 +289,12 @@ void SandSimulation::tickFillUpperHalf(unsigned long *last_update, unsigned long
 void SandSimulation::tickHourglass(unsigned long *last_update, unsigned long *last_spawn, TIMER_STATE timer_state)
 {
   unsigned long current_time = millis();
-  if (current_time - *last_update >= ms_screen_update || last_update == 0)
+  if (current_time - *last_update >= ms_screen_update || *last_update == 0)
   {
     *last_update = current_time;
     updateField();
   }
-  if ((current_time - *last_spawn >= ms_grain_spawn || last_spawn == 0) && timer_state != PAUSED)
+  if ((current_time - *last_spawn >= ms_grain_spawn || *last_spawn == 0) && timer_state != PAUSED)
   {
     *last_spawn = current_time;
     spawnGrainInRegion((MAT_WIDTH / 2) - 1, MAT_WIDTH / 2);

@@ -2,27 +2,65 @@
 #include "TimerHandler.h"
 #include <config.h>
 
-const uint8_t SEG_STOP[4] = {
-    SEG_A | SEG_C | SEG_D | SEG_F | SEG_G,
-    SEG_D | SEG_E | SEG_F | SEG_G,
-    SEG_C | SEG_D | SEG_E | SEG_G,
-    SEG_A | SEG_B | SEG_E | SEG_F | SEG_G};
+TimerHandler::TimerHandler()
+{
+    enc = NULL;
+    seg_display = NULL;
+    alarm_buzzer = NULL;
 
-const uint8_t SEG_CONT[4] = {
-    SEG_A | SEG_D | SEG_E | SEG_F,
-    SEG_C | SEG_D | SEG_E | SEG_G,
-    SEG_C | SEG_E | SEG_G,
-    SEG_D | SEG_E | SEG_F | SEG_G,
-};
+    resetTimerHandler();
+}
 
-const uint8_t SEG_END[4] = {
-    SEG_A | SEG_D | SEG_E | SEG_F | SEG_G,
-    SEG_C | SEG_E | SEG_G,
-    SEG_B | SEG_C | SEG_D | SEG_E | SEG_G,
-    0};
+void TimerHandler::init(void (*encoder_func)())
+{
+    // setup encoder and seg display via their libraries
+    enc = new RotaryEncoder(ENC_PINS[0], ENC_PINS[1], ENC_LATCH_MODE);
+    seg_display = new TM1637Display(SEG_PINS[0], SEG_PINS[1]);
+
+    // set brightness for display
+    seg_display->setBrightness(SEG_BRIGHTNESS, true);
+
+    // setup the encoder push button
+    pinMode(ENC_PINS[2], INPUT_PULLUP);
+
+    // attach the interrupts for the encoder
+    attachInterrupt(digitalPinToInterrupt(ENC_PINS[0]), encoder_func, CHANGE);
+    attachInterrupt(digitalPinToInterrupt(ENC_PINS[1]), encoder_func, CHANGE);
+
+    // setup the alarm buzzer via the library
+    alarm_buzzer = new ezBuzzer(BUZZER_PIN);
+}
+
+void TimerHandler::resetTimerHandler()
+{
+    // timestamps of last action
+    timer_start_ts = 0;
+    last_blink_ts = 0;
+    last_display_update_ts = 0;
+    button_pressed_ts = 0;
+
+    // bool flags to keep track of actions
+    blink_state = false;
+    button_previously_pressed = false;
+    ignore_button_release = true;
+    editing_first_value = true;
+
+    // millisecond values to keep track of time
+    remaining_ms = 0;
+    total_ms = 0;
+
+    // timer values configured in the SELECT TIME state
+    timer_stored_value1 = 0;
+    timer_stored_value2 = 0;
+    timer_raw_value = 0;
+
+    timer_state = SELECT_MODE;
+    timer_mode = HH_MM_MODE;
+}
 
 void (*resetFunc)(void) = 0;
 
+// rotates the display 180° by rotating each segment individually and reversing their order afterwards
 void rotateSegments(uint8_t *segments)
 {
     // rotate individual segments
@@ -32,8 +70,10 @@ void rotateSegments(uint8_t *segments)
         for (int j = 0; j < 6; j++)
         {
             int new_j = (j + 3) % 6;
+
+            // if bit is set
             if (1 & (old_segment >> j))
-            { // if bit is set
+            {
                 segments[i] |= 1 << new_j;
             }
             else
@@ -43,7 +83,7 @@ void rotateSegments(uint8_t *segments)
         }
     }
 
-    // flip segments horizontally
+    // reverse segment order
     for (int i = 0; i < 2; i++)
     {
         uint8_t temp = segments[i];
@@ -52,186 +92,308 @@ void rotateSegments(uint8_t *segments)
     }
 }
 
-void TimerHandler::encode_num(int num, uint8_t *segments)
+// writes the integer literal to the specified position in the segment array
+void TimerHandler::encodeNumberToSegments(unsigned int num, uint8_t *segments, int start_i, int len)
 {
-    for (int i = 3; i >= 0; i--)
+    for (int i = start_i + len - 1; i >= start_i; i--)
     {
+        // this seperates each digit of the integer by making use of integer casting when dividing.
         segments[i] = seg_display->encodeDigit(num % ((num / 10) * 10));
         num /= 10;
     }
 }
 
-TimerHandler::TimerHandler()
-{
-    // initialization
-    this->state = SELECT_TIME;
-    this->last_blink_ms = 0;
-    this->last_enc_pos = 0;
-    this->timer_minutes = 0;
-    this->blink_state = false;
-    this->button_previously_pressed = false;
-}
-
-void TimerHandler::init(void (*encoder_func)())
-{
-    enc = new RotaryEncoder(ENC_PINS[0], ENC_PINS[1], ENC_LATCH_MODE);
-    seg_display = new TM1637Display(SEG_PINS[0], SEG_PINS[1]);
-
-    pinMode(ENC_PINS[2], INPUT_PULLUP);
-    attachInterrupt(digitalPinToInterrupt(ENC_PINS[0]), encoder_func, CHANGE);
-    attachInterrupt(digitalPinToInterrupt(ENC_PINS[1]), encoder_func, CHANGE);
-
-    melody_buzzer = new ezBuzzer(BUZZER_PIN);
-}
-
 void TimerHandler::updateDisplay()
 {
-    bool power;
-    bool dots;
-    int disp_num;
+    uint8_t segments[4] = {0, 0, 0, 0};
 
-    uint8_t segments[4];
-
-    switch (state)
+    switch (timer_state)
     {
+    case SELECT_MODE:
+        /*
+        - displays currently selected mode
+        */
+
+        if (timer_raw_value % 2 == 0)
+        {
+            for (int i = 0; i < 4; i++)
+                segments[i] = SEG_HH_MM[i];
+        }
+        else
+        {
+            for (int i = 0; i < 4; i++)
+                segments[i] = SEG_MM_SS[i];
+        }
+        break;
+
     case SELECT_TIME:
-        power = blink_state || last_enc_pos != 0;
-        dots = power;
-        disp_num = mins_to_display(abs(last_enc_pos));
-        encode_num(disp_num, segments);
+        /*
+        - currently edited value blinks, dots and other displayed value don't
+        */
+
+        if (blink_state || !editing_first_value)
+            encodeNumberToSegments(timer_stored_value1, segments, 0, 2);
+        if (blink_state || editing_first_value)
+            encodeNumberToSegments(timer_stored_value2, segments, 2, 2);
+        segments[2] |= SEG_DP;
         break;
+
     case RUNNING:
-        power = true;
-        dots = blink_state;
-        disp_num = millis_to_display(end_time - millis());
-        encode_num(disp_num, segments);
+    {
+        /*
+        - digits don't blink, dots do
+        - show remaining time on seg display
+        */
+       unsigned long remaining_ms = calculateRemainingMs();
+        encodeNumberToSegments(createDisplayLiteral(remaining_ms), segments, 0, 4);
+        if ((remaining_ms/1000) % 2 == 1)
+            segments[2] |= SEG_DP;
         break;
+    }
     case PAUSED:
-        power = blink_state;
-        dots = false;
-        for (int i = 0; i < 4; i++)
-            segments[i] = (last_enc_pos % 2) ? SEG_STOP[i] : SEG_CONT[i];
+        /*
+        - digits show options
+        - dots are off
+        */
+        if (timer_raw_value % 2)
+        {
+            for (int i = 0; i < 4; i++)
+                segments[i] = SEG_STOP[i];
+        }
+        else
+        {
+            for (int i = 0; i < 4; i++)
+                segments[i] = SEG_CONT[i];
+        }
         break;
+
     case FINISHED:
-        power = true;
-        dots = false;
+        /*
+        - digits show end screen
+        - dots are off
+        */
         for (int i = 0; i < 4; i++)
             segments[i] = SEG_END[i];
         break;
-    default:
-        break;
     }
+
     if (SEG_ROTATED)
         rotateSegments(segments);
 
-    if (dots)
-        segments[1] |= SEG_DP;
-
-    seg_display->setBrightness(SEG_BRIGHTNESS, power);
     seg_display->setSegments(segments, 4, 0);
 }
+
 void TimerHandler::clickBuzzer()
 {
-    if (melody_buzzer->getState() == BUZZER_IDLE)
+    // check if the alarm buzzer is not currently running
+    if (alarm_buzzer->getState() == BUZZER_IDLE)
         tone(BUZZER_PIN, BUZZER_CLICK_FREQ, BUZZER_CLICK_DURATION);
 }
 
 void TimerHandler::tick()
 {
-    melody_buzzer->loop();
+    bool update_display_flag = false;
+
+    alarm_buzzer->loop();
     unsigned long current_time = millis();
+    long enc_change = enc->getPosition();
 
-    if (state == RUNNING && current_time > end_time)
-        state = FINISHED;
-
-    if (last_enc_pos != enc->getPosition() && digitalRead(ENC_PINS[2]))
+    // check if timer has finished
+    if (timer_state == RUNNING && INTERVAL_PASSED(timer_start_ts, remaining_ms, current_time))
     {
-        if ((ENC_INVERT_DIRECTION && enc->getPosition() > 0) || (!ENC_INVERT_DIRECTION && enc->getPosition() < 0))
-            enc->setPosition(0);
-        last_enc_pos = enc->getPosition();
-        if (BUZZER_DO_CLICK)
-            clickBuzzer();
-        updateDisplay();
+        timer_state = FINISHED;
+
+        // sound alarm if configured to do so
+        if (BUZZER_DO_ALARM)
+            alarm_buzzer->playMelody(BUZZER_ALARM, BUZZER_ALARM_DURATIONS, BUZZER_ALARM_LENGTH);
     }
-    if ((blink_state && (current_time - last_blink_ms >= SEG_BLINK_DURATIONS[0])) || (!blink_state && (current_time - last_blink_ms >= SEG_BLINK_DURATIONS[1])))
+
+    // if the on/off duration for the seg display blink has passed
+    if ((blink_state && INTERVAL_PASSED(last_blink_ts, SEG_BLINK_DURATION[0], current_time)) ||
+        (!blink_state && INTERVAL_PASSED(last_blink_ts, SEG_BLINK_DURATION[1], current_time)))
     {
+        // switch blink state and set last_blink_ts accordingly
         blink_state = !blink_state;
-        last_blink_ms = current_time;
-        if (BUZZER_DO_ALARM && state == FINISHED && melody_buzzer->getState() == BUZZER_IDLE)
-            melody_buzzer->playMelody(BUZZER_ALARM, BUZZER_ALARM_DURATIONS, BUZZER_ALARM_LENGTH);
-        updateDisplay();
+        last_blink_ts = current_time;
+
+        // set the update_display_flag
+        update_display_flag = true;
     }
 
+    // if encoder button is NOT being pressed
     if (digitalRead(ENC_PINS[2]))
-    { // button not pressed
-        if (wait_for_button_released)
-        { // button release flag was set
-            wait_for_button_released = false;
+    {
+        // check if encoder was rotated
+        if (enc_change != 0 && digitalRead(ENC_PINS[2]))
+        {
+            // invert value for a clockwise rotation as positive change
+            if (ENC_CW_IS_POSITIVE)
+                enc_change = -enc_change;
+
+            if (timer_state == SELECT_TIME)
+            {
+                int temp_value;
+                if (editing_first_value)
+                    temp_value = timer_stored_value1 + enc_change;
+                else
+                    temp_value = timer_stored_value2 + enc_change;
+
+                // if currently editing hour value, constrain to 0 to 10
+                if (timer_mode == HH_MM_MODE && editing_first_value)
+                    temp_value = constrain(temp_value, 0, 10);
+                // otherwise, constrain to to 0 to 59
+                else
+                    temp_value = constrain(temp_value, 0, 59);
+
+                if (editing_first_value)
+                    timer_stored_value1 = temp_value;
+                else
+                    timer_stored_value2 = temp_value;
+            }
+            else
+            {
+                timer_raw_value += enc_change;
+            }
+
+            // reset the encoder to "neutral" position
+            enc->setPosition(0);
+
+            // click buzzer if configurated to do so
+            if (BUZZER_DO_CLICK)
+                clickBuzzer();
+
+            // set the update_display_flag
+            update_display_flag = true;
+        }
+
+        // ignore_button_release flag was set, unset it and ignore this button press
+        if (ignore_button_release)
+        {
+            ignore_button_release = false;
             button_previously_pressed = false;
         }
+
+        // button was pressed before and ignore_button_release was not set, button press is valid
         else if (button_previously_pressed)
-        { // button was pressed before
-            int new_time = 0;
-            switch (state)
+        {
+            switch (timer_state)
             {
+            case SELECT_MODE:
+                timer_mode = (timer_raw_value % 2 == 0) ? HH_MM_MODE : MM_SS_MODE;
+                timer_state = SELECT_TIME;
+                break;
+
             case SELECT_TIME:
-                /*
-                 * Time selected, if time valid set state to RUNNING and calculate end time
-                 */
-                if (last_enc_pos == 0)
+                // if currently editing first value, switch to second
+                if (editing_first_value)
                 {
-                    wait_for_button_released = true;
+                    editing_first_value = false;
                     break;
                 }
-                timer_minutes = abs(last_enc_pos);
-                state = RUNNING;
-                start_time = current_time;
-                end_time = current_time + (timer_minutes * 60000);
+
+                // if first and second value are still 0, go back to mode selection
+                if (timer_stored_value1 == 0 && timer_stored_value2 == 0)
+                {
+                    resetTimerHandler();
+                    break;
+                }
+
+                if (timer_mode == HH_MM_MODE)
+                    total_ms = timer_stored_value1 * 3600000UL + timer_stored_value2 * 60000UL;
+                else
+                    total_ms = timer_stored_value1 * 60000UL + timer_stored_value2 * 1000UL;
+
+                remaining_ms = total_ms;
+                timer_start_ts = current_time;
+                timer_state = RUNNING;
                 break;
 
             case RUNNING:
-                /*
-                 * Pause issued, save remaining time and set state to PAUSED
-                 */
-                remaining_time = end_time - current_time;
-                state = PAUSED;
+                // Pause issued, save remaining time and set state to PAUSED
+                remaining_ms -= current_time - timer_start_ts;
+                timer_state = PAUSED;
                 break;
+
             case PAUSED:
-                /*
-                 * Pause ended, either resume or reset Arduino
-                 */
-                if (last_enc_pos % 2)
+                // Pause ended, either resume or reset the board
+                if (timer_raw_value % 2)
                 { // STOP selected
                     resetFunc();
                 }
                 else
                 { // CONTINUE selected
-                    end_time = current_time + remaining_time;
-                    start_time = current_time;
-                    state = RUNNING;
+                    timer_start_ts = current_time;
+                    timer_state = RUNNING;
                 }
                 break;
+
             case FINISHED:
-                /*
-                 * Timer stopped and button pressed, reset Arduino
-                 */
-                melody_buzzer->stop();
+                // Timer stopped and button pressed, reset the board
+                alarm_buzzer->stop();
                 resetFunc();
                 break;
-            default:
-                break;
             }
-            enc->setPosition(new_time);
-            last_blink_ms = current_time;
+
+            // reset raw encoder value
+            timer_raw_value = 0;
+
+            // queue seg display update
             blink_state = true;
-            updateDisplay();
-            wait_for_button_released = true;
+            update_display_flag = true;
+
+            // wait for button release
+            ignore_button_release = true;
         }
     }
     else
     { // button pressed
-        if (BUZZER_DO_CLICK && !button_previously_pressed)
-            clickBuzzer();
-        button_previously_pressed = true;
+        if (!button_previously_pressed)
+        {
+            button_previously_pressed = true;
+            button_pressed_ts = current_time;
+
+            if (BUZZER_DO_CLICK)
+                clickBuzzer();
+        }
     }
+
+    // update display is flag was set accordingly
+    if (update_display_flag || INTERVAL_PASSED(last_display_update_ts, SEG_UPDATE_INTERVAL, current_time))
+    {
+        last_display_update_ts = current_time;
+        updateDisplay();
+    }
+}
+
+unsigned int TimerHandler::createDisplayLiteral(unsigned long milliseconds)
+{
+    switch (timer_mode)
+    {
+    case HH_MM_MODE:
+    {
+        unsigned int minutes = ceil(milliseconds / 60000.0f);
+        return (((minutes) / 60) * 100) + ((minutes) % 60);
+        break;
+    }
+
+    case MM_SS_MODE:
+    {
+        unsigned int seconds = ceil(milliseconds / 1000.0f);
+        return((seconds / 60) * 100) + (seconds % 60);
+        break;
+    }
+
+    default:
+        return 0;
+    }
+}
+
+float TimerHandler::calculateTimerProgress()
+{
+    return calculateRemainingMs() / total_ms;
+}
+
+unsigned long TimerHandler::calculateRemainingMs()
+{
+    return timer_start_ts + remaining_ms - millis();
 }
