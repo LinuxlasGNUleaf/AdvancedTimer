@@ -41,7 +41,7 @@ unsigned long last_spawn = 0;
 
 void loop()
 {
-  while (time_handler.timer_state == SELECT_TIME)
+  while (time_handler.timer_state != RUNNING)
   {
     time_handler.tick();
   }
@@ -53,5 +53,6 @@ void loop()
   {
     sand_sim.tickHourglass(&last_update, &last_spawn, time_handler.timer_state);
     time_handler.tick();
+    SPRINTLN(time_handler.calculateTimerProgress());
   }
 }
