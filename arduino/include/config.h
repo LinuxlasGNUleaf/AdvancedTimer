@@ -8,7 +8,7 @@
 #include <ezBuzzer.h>
 
 // ======> PREPROCESSOR MACROS
-#define DEBUG 0
+#define DEBUG 1
 
 #if DEBUG
 #define SPRINT(msg) Serial.print(msg)
@@ -101,7 +101,7 @@
 
         // MATRIX CONSTRAINTS
         extern uint16_t MAT_CONSTRAINTS[];
-
+        const int MAT_FREE = 64-12; 
 
     // ==> 7SEG DISPLAY
 
@@ -183,7 +183,7 @@
 
 
     // ==> LED MATRIX
-        const unsigned int MAT_GRAIN_SPAWN_INTERVAL = 75;
+        const unsigned int MAT_GRAIN_SPAWN_MULT = 3;
         const unsigned int MAT_DISP_UPDATE_INTERVAL = 25;
 
 

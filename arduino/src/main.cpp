@@ -1,11 +1,11 @@
 #include <Arduino.h>
 #include <config.h>
 #include <SandSimulation.h>
-#include <TimerHandler.h>
+#include <DisplayHandler.h>
 
 
 TimerHandler time_handler = TimerHandler();
-SandSimulation sand_sim = SandSimulation();
+DisplayHandler display_handler = DisplayHandler();
 
 void tickPosition()
 {
@@ -21,18 +21,13 @@ void setup()
   #endif
   // initialize objects & attach interrupts
   time_handler.init(tickPosition);
-  sand_sim.init();
+  display_handler.init();
 
   // fill upper half of hourglass
-  sand_sim.setUpdateIntervals(MAT_DISP_UPDATE_INTERVAL, MAT_GRAIN_SPAWN_INTERVAL);
-  sand_sim.setYRange(0, MAT_WIDTH);
-
-  unsigned long last_update = 0;
-  unsigned long last_spawn = 0;
-  while (!sand_sim.is_full)
+  display_handler.setup(SIM_FILL);
+  while (!display_handler.is_full)
   {
-    sand_sim.tickFillUpperHalf(&last_update, &last_spawn);
-    time_handler.tick();
+    display_handler.tick(0);
   }
 }
 
@@ -46,12 +41,12 @@ void loop()
     time_handler.tick();
   }
 
-  sand_sim.setUpdateIntervals(MAT_DISP_UPDATE_INTERVAL, 50);
-  sand_sim.setYRange(MAT_WIDTH, 2 * MAT_WIDTH);
+  //sand_sim.setUpdateIntervals(MAT_DISP_UPDATE_INTERVAL, 50);
+  //sand_sim.setYRange(MAT_WIDTH, 2 * MAT_WIDTH);
 
   while (true)
   {
-    sand_sim.tickHourglass(&last_update, &last_spawn, time_handler.timer_state);
+    //sand_sim.tickHourglass(&last_update, &last_spawn, time_handler.timer_state);
     time_handler.tick();
     SPRINTLN(time_handler.calculateTimerProgress());
   }
