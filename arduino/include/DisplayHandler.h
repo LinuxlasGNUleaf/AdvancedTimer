@@ -40,6 +40,7 @@ public:
     void resetField();
     void init();
     bool spawnGrain(int y);
+    bool hasFreeSpot(int y);
     void tick(double status);
     void setup(SIMULATION_STATE new_state);
     void removeFrom(int y1, int y2);

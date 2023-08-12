@@ -1,7 +1,7 @@
 #include <Arduino.h>
 #include <config.h>
-#include <SandSimulation.h>
 #include <DisplayHandler.h>
+#include <TimerHandler.h>
 
 TimerHandler time_handler = TimerHandler();
 DisplayHandler display_handler = DisplayHandler();
@@ -37,16 +37,13 @@ unsigned long last_spawn = 0;
 
 void loop()
 {
-  // sand_sim.setUpdateIntervals(MAT_DISP_UPDATE_INTERVAL, 50);
-  // sand_sim.setYRange(MAT_WIDTH, 2 * MAT_WIDTH);
-
   float progress;
-  while (true)
+  while (time_handler.timer_state != TIMER_STATE::FINISHED || display_handler.is_full == false)
   {
-    // sand_sim.tickHourglass(&last_update, &last_spawn, time_handler.timer_state);
     time_handler.tick();
     progress = time_handler.calculateTimerProgress();
     display_handler.tick(progress);
-    //SPRINTLN(progress);
   }
+  time_handler.tick();
+
 }

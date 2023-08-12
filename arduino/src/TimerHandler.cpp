@@ -394,5 +394,7 @@ float TimerHandler::calculateTimerProgress()
 
 unsigned long TimerHandler::calculateRemainingMs()
 {
-    return timer_start_ts + remaining_ms - millis();
+    if (timer_state == TIMER_STATE::RUNNING)
+        return timer_start_ts + remaining_ms - millis();
+    return remaining_ms;
 }

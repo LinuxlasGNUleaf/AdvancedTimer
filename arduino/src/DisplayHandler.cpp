@@ -92,10 +92,8 @@ void DisplayHandler::propagateField(bool inversed)
             // check whether position is final, if so
             if (!isPosFree(x - 1, y + dir) && !isPosFree(x, y + dir) && !isPosFree(x + 1, y + dir))
             {
-                // SPRINTLN("Grain no longer active.");
                 continue;
             }
-            // SPRINTLN("Moving grain at (" + (String)x + ", " + (String)y + ")");
 
             // remove grain from old position in field and on matrix
             setBit(matrix, x, y, false);
@@ -155,6 +153,7 @@ void DisplayHandler::init()
 
 void DisplayHandler::printField()
 {
+#if DEBUG
     SPRINTLN("MATRIX:");
     for (int y = 0; y < MAT_WIDTH * MAT_MODULE_COUNT; y++)
     {
@@ -173,26 +172,16 @@ void DisplayHandler::printField()
         }
         SPRINTLN();
     }
+#endif
 }
 
 bool DisplayHandler::spawnGrain(int y)
 {
-    // printField();
-    bool free = false;
-    for (int x = 0; x < MAT_WIDTH; x++)
-    {
-        if (isPosFree(x, y))
-        {
-            free = true;
-            break;
-        }
-    }
-    if (!free)
+    if (!hasFreeSpot(y))
     {
         is_full = true;
         return false;
     }
-    is_full = false;
 
     while (true)
     {
@@ -203,16 +192,25 @@ bool DisplayHandler::spawnGrain(int y)
             setBit(active, x, y, true);
             setDisplayBit(x, y, true);
             free_count--;
-            //SPRINTLN("Grain spawned at (" + (String)x + ", " + (String)y + ")");
+            is_full = !hasFreeSpot(y);
             return true;
         }
     }
-    // printField();
+}
+
+bool DisplayHandler::hasFreeSpot(int y)
+{
+    for (int x = 0; x < MAT_WIDTH; x++)
+    {
+        if (isPosFree(x, y))
+            return true;
+    }
+    return false;
 }
 
 void DisplayHandler::tick(double timer_status)
 {
-    if (millis() - last_display_update < MAT_DISP_UPDATE_INTERVAL)
+    if (!INTERVAL_PASSED(last_display_update, MAT_DISP_UPDATE_INTERVAL, millis()))
         return;
     last_display_update = millis();
 
@@ -236,16 +234,13 @@ void DisplayHandler::tick(double timer_status)
     case SIM_RUNNING:
         spawn_row = MAT_WIDTH;
         status_diff_current = abs((float(free_count) / MAT_FREE) - timer_status);
-        status_diff_next = abs((float(free_count-1) / MAT_FREE) - timer_status);
-        SPRINT("current status diff: ");
-        SPRINT(status_diff_current*100);
-        SPRINT("\% next status diff: ");
-        SPRINT(status_diff_next*100);
-        SPRINTLN("\%");
+        status_diff_next = abs((float(free_count - 1) / MAT_FREE) - timer_status);
 
         if (status_diff_current > status_diff_next)
+        {
             spawn = true;
-        removeFrom(0, MAT_WIDTH - 1);
+            removeFrom(0, MAT_WIDTH - 1);
+        }
         break;
 
     case SIM_RELOADING:
@@ -276,14 +271,13 @@ void DisplayHandler::setup(SIMULATION_STATE new_state)
     case SIM_FILL:
         i = 0;
         y_top = 0;
-        y_bottom = MAT_WIDTH-1;
+        y_bottom = MAT_WIDTH - 1;
         idle_count = 0;
-        is_full = false;
         break;
 
     case SIM_RUNNING:
         y_top = MAT_WIDTH;
-        y_bottom = 2 * MAT_WIDTH;
+        y_bottom = 2 * MAT_WIDTH - 1;
         free_count = MAT_FREE;
         break;
 
@@ -303,14 +297,17 @@ void DisplayHandler::setup(SIMULATION_STATE new_state)
 
 void DisplayHandler::removeFrom(int y1, int y2)
 {
-    for (int y = y1; (y <= y2 ? y1 < y2 : y >= y2); (y++ ? y1 < y2 : y--))
+    for (int y = y1; (y1 < y2 ? y <= y2 : y >= y2); (y1 < y2 ? y++ : y--))
     {
         // see if there are any points to remove in this row
         bool found = false;
         for (int x = 0; x < MAT_WIDTH; x++)
         {
-            found = true;
-            break;
+            if (getBit(matrix, x, y))
+            {
+                found = true;
+                break;
+            }
         }
         // if not, continue to the next
         if (!found)

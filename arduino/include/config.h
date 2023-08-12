@@ -183,8 +183,8 @@
 
 
     // ==> LED MATRIX
-        const unsigned int MAT_GRAIN_SPAWN_MULT = 3;
-        const unsigned int MAT_DISP_UPDATE_INTERVAL = 25;
+        const unsigned int MAT_GRAIN_SPAWN_MULT = 2;
+        const unsigned int MAT_DISP_UPDATE_INTERVAL = 20;
 
 
     // ==> 7SEG DISPLAY
