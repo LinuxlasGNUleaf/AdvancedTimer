@@ -209,8 +209,7 @@ void TimerHandler::tick()
     }
 
     // if the on/off duration for the seg display blink has passed
-    if ((blink_state && INTERVAL_PASSED(last_blink_ts, SEG_BLINK_DURATION[0], current_time)) ||
-        (!blink_state && INTERVAL_PASSED(last_blink_ts, SEG_BLINK_DURATION[1], current_time)))
+    if (INTERVAL_PASSED(last_blink_ts, SEG_BLINK_DURATION[blink_state ? 0 : 1], current_time))
     {
         // switch blink state and set last_blink_ts accordingly
         blink_state = !blink_state;
@@ -390,7 +389,7 @@ unsigned int TimerHandler::createDisplayLiteral(unsigned long milliseconds)
 
 float TimerHandler::calculateTimerProgress()
 {
-    return calculateRemainingMs() / total_ms;
+    return float(calculateRemainingMs()) / total_ms;
 }
 
 unsigned long TimerHandler::calculateRemainingMs()

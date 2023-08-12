@@ -85,17 +85,26 @@ void DisplayHandler::propagateField(bool inversed)
             // check if grain is active
             if (!getBit(active, x, y))
                 continue;
+
+            // remove grain from active matrix
+            setBit(active, x, y, false);
+
+            // check whether position is final, if so
+            if (!isPosFree(x - 1, y + dir) && !isPosFree(x, y + dir) && !isPosFree(x + 1, y + dir))
+            {
+                // SPRINTLN("Grain no longer active.");
+                continue;
+            }
             // SPRINTLN("Moving grain at (" + (String)x + ", " + (String)y + ")");
 
             // remove grain from old position in field and on matrix
             setBit(matrix, x, y, false);
             setDisplayBit(x, y, false);
-            setBit(active, x, y, false);
 
             // advance y postion
             y += dir;
 
-            // if field directly beneath is obstructed choose path based on available options
+            // if field directly "infront" is obstructed choose path based on available options
             if (!isPosFree(x, y))
             {
                 // if both sides of are free, flip a coin
@@ -114,14 +123,6 @@ void DisplayHandler::propagateField(bool inversed)
             }
             setBit(matrix, x, y, true);
             setDisplayBit(x, y, true);
-            // SPRINTLN("to (" + (String)x + ", " + (String)y + ")");
-
-            // check whether position is final
-            if (!isPosFree(x - 1, y + dir) && !isPosFree(x, y + dir) && !isPosFree(x + 1, y + dir))
-            {
-                // SPRINTLN("Grain no longer active.");
-                return;
-            }
             setBit(active, x, y, true);
         }
     }
@@ -202,14 +203,14 @@ bool DisplayHandler::spawnGrain(int y)
             setBit(active, x, y, true);
             setDisplayBit(x, y, true);
             free_count--;
-            SPRINTLN("Grain spawned at (" + (String)x + ", " + (String)y + ")");
+            //SPRINTLN("Grain spawned at (" + (String)x + ", " + (String)y + ")");
             return true;
         }
     }
     // printField();
 }
 
-void DisplayHandler::tick(double status)
+void DisplayHandler::tick(double timer_status)
 {
     if (millis() - last_display_update < MAT_DISP_UPDATE_INTERVAL)
         return;
@@ -218,6 +219,8 @@ void DisplayHandler::tick(double status)
     bool prop_inversed = false;
     bool spawn = false;
     int spawn_row = 0;
+    float status_diff_current, status_diff_next;
+
     switch (state)
     {
     case SIM_IDLE:
@@ -232,7 +235,15 @@ void DisplayHandler::tick(double status)
 
     case SIM_RUNNING:
         spawn_row = MAT_WIDTH;
-        if (abs(1.0f - (free_count - 1 / MAT_FREE) - state) < (abs(1.0f - (free_count / MAT_FREE) - state)))
+        status_diff_current = abs((float(free_count) / MAT_FREE) - timer_status);
+        status_diff_next = abs((float(free_count-1) / MAT_FREE) - timer_status);
+        SPRINT("current status diff: ");
+        SPRINT(status_diff_current*100);
+        SPRINT("\% next status diff: ");
+        SPRINT(status_diff_next*100);
+        SPRINTLN("\%");
+
+        if (status_diff_current > status_diff_next)
             spawn = true;
         removeFrom(0, MAT_WIDTH - 1);
         break;
@@ -248,9 +259,10 @@ void DisplayHandler::tick(double status)
         break;
     }
 
-    if (spawn)
-        spawnGrain(spawn_row);
     propagateField(prop_inversed);
+    if (spawn && !is_full)
+        spawnGrain(spawn_row);
+
     mat_display->update();
 }
 
@@ -264,7 +276,7 @@ void DisplayHandler::setup(SIMULATION_STATE new_state)
     case SIM_FILL:
         i = 0;
         y_top = 0;
-        y_bottom = MAT_WIDTH;
+        y_bottom = MAT_WIDTH-1;
         idle_count = 0;
         is_full = false;
         break;
