@@ -68,8 +68,6 @@ void TimerHandler::resetTimerHandler()
     }
 }
 
-void (*resetFunc)(void) = 0;
-
 // rotates the display 180° by rotating each segment individually and reversing their order afterwards
 void rotateSegments(uint8_t *segments)
 {
@@ -336,8 +334,9 @@ void TimerHandler::tick()
             case PAUSED:
                 // Pause ended, either resume or reset the board
                 if (timer_raw_value % 2)
-                { // STOP selected
-                    resetFunc();
+                { // STOP selected, trigger WDT on purpose
+                    wdt_enable(WDTO_15MS);
+                    while(1);
                 }
                 else
                 { // CONTINUE selected
