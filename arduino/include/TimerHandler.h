@@ -1,9 +1,6 @@
 #ifndef TIMERHANDLER_H
 #define TIMERHANDLER_H
 
-#include <ezBuzzer.h>
-#include <RotaryEncoder.h>
-#include <TM1637Display.h>
 #include <config.h>
 
 enum TIMER_STATE
@@ -57,6 +54,9 @@ private:
     void updateDisplay();
     void clickBuzzer();
     unsigned long calculateRemainingMs();
+
+    void saveToEEPROM(TIMER_MODE mode, unsigned int value1, unsigned int value2);
+    bool loadFromEEPROM(TIMER_MODE *mode, unsigned int *value1, unsigned int *value2);
 
 public:
     // encoder library object

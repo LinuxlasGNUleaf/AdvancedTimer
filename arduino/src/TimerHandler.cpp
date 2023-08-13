@@ -50,12 +50,22 @@ void TimerHandler::resetTimerHandler()
     total_ms = 0;
 
     // timer values configured in the SELECT TIME state
-    timer_stored_value1 = 0;
-    timer_stored_value2 = 0;
-    timer_raw_value = 0;
-
     timer_state = SELECT_MODE;
-    timer_mode = HH_MM_MODE;
+
+    // try to load settings from EEPROM
+    bool ok = loadFromEEPROM(&timer_mode, &timer_stored_value1, &timer_stored_value2);
+    if (!ok)
+    {
+        // set default settings
+        timer_stored_value1 = 0;
+        timer_stored_value2 = 0;
+        timer_raw_value = 0;
+        timer_mode = HH_MM_MODE;
+    }
+    else
+    {
+        timer_raw_value = timer_mode == HH_MM_MODE ? 0 : 1;
+    }
 }
 
 void (*resetFunc)(void) = 0;
@@ -301,6 +311,7 @@ void TimerHandler::tick()
                     total_ms = timer_stored_value1 * 3600000UL + timer_stored_value2 * 60000UL;
                 else
                     total_ms = timer_stored_value1 * 60000UL + timer_stored_value2 * 1000UL;
+                saveToEEPROM(timer_mode, timer_stored_value1, timer_stored_value2);
 
                 remaining_ms = total_ms;
                 timer_start_ts = current_time;
@@ -390,7 +401,7 @@ unsigned int TimerHandler::createDisplayLiteral(unsigned long milliseconds)
 float TimerHandler::calculateTimerProgress()
 {
     if (timer_state == PAUSED)
-        return float(remaining_ms) / total_ms;
+        return 1 - float(remaining_ms) / total_ms;
     if (timer_state == FINISHED)
         return 1.0f;
     return 1 - float(calculateRemainingMs()) / total_ms;
@@ -401,5 +412,64 @@ unsigned long TimerHandler::calculateRemainingMs()
     if (timer_start_ts + remaining_ms < millis())
         return 0;
     return timer_start_ts + remaining_ms - millis();
-    
+}
+
+bool TimerHandler::loadFromEEPROM(TIMER_MODE *mode, unsigned int *value1, unsigned int *value2)
+{
+    SPRINTLN("ATTEMPTING TO LOAD FROM EEPROM...");
+    int addr = 0;
+    uint8_t array[EEPROM_LENGTH];
+    for (addr = 0; addr < EEPROM_LENGTH; addr++)
+    {
+        array[addr] = EEPROM.read(addr);
+    }
+    uint32_t readHash = EEPROM.get(addr, readHash);
+
+    // copy values to parameters
+    uint8_t *ptr = array;
+    memcpy(mode, ptr, sizeof(TIMER_MODE));
+    ptr += sizeof(TIMER_MODE);
+    memcpy(value1, ptr, sizeof(unsigned int));
+    ptr += sizeof(unsigned int);
+    memcpy(value2, ptr, sizeof(unsigned int));
+    // ptr += sizeof(unsigned int);
+
+    uint32_t computeHash = SuperFastHash(array, EEPROM_LENGTH);
+    SPRINT(readHash);
+    SPRINT(" <==> ");
+    SPRINTLN(computeHash);
+    if (readHash == computeHash)
+        SPRINTLN("CHECKSUM VALID.");
+    else
+        SPRINTLN("CHECKSUM INVALID.");
+
+    return readHash == computeHash;
+}
+
+void TimerHandler::saveToEEPROM(TIMER_MODE mode, unsigned int value1, unsigned int value2)
+{
+    SPRINTLN("SAVING TO EEPROM...");
+    uint8_t array[EEPROM_LENGTH];
+    for (int i = 0; i < EEPROM_LENGTH; i++)
+        array[i] = 0;
+
+    // copy parameters to array
+    uint8_t *ptr = array;
+    memcpy(ptr, &mode, sizeof(TIMER_MODE));
+    ptr += sizeof(TIMER_MODE);
+    memcpy(ptr, &value1, sizeof(unsigned int));
+    ptr += sizeof(unsigned int);
+    memcpy(ptr, &value2, sizeof(unsigned int));
+    // ptr += sizeof(unsigned int);
+
+    int addr = 0;
+    for (addr = 0; addr < EEPROM_LENGTH; addr++)
+    {
+        EEPROM.write(addr, array[addr]);
+    }
+    uint32_t computeHash = SuperFastHash(array, EEPROM_LENGTH);
+    EEPROM.put(addr, computeHash);
+    SPRINT("HASH: ");
+    SPRINT(computeHash);
+    SPRINTLN(", DONE.");
 }

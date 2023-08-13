@@ -5,6 +5,8 @@
 #include <MD_MAX72xx.h>
 #include <TM1637Display.h>
 #include <RotaryEncoder.h>
+#include <EEPROM.h>
+#include <hash.h>
 #include <ezBuzzer.h>
 
 // ======> PREPROCESSOR MACROS
@@ -211,4 +213,7 @@
         extern int BUZZER_ALARM[];
         extern int BUZZER_ALARM_DURATIONS[];
         extern int BUZZER_ALARM_LENGTH;
+
+    // ==> EEPROM SETTINGS
+        const int EEPROM_LENGTH = 4UL + sizeof(unsigned int) + sizeof(unsigned int);
 #endif

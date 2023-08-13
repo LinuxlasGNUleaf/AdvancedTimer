@@ -1,7 +1,6 @@
 #ifndef DISPLAYHANDLER_H
 #define DISPLAYHANDLER_H
 
-#include <MD_MAX72xx.h>
 #include <config.h>
 
 enum SIMULATION_STATE
@@ -30,22 +29,23 @@ private:
     unsigned long last_display_update;
     int i;
 
-public:
-    DisplayHandler();
-
     bool getBit(uint16_t *arr, int x, int y);
     void setBit(uint16_t *arr, int x, int y, bool val);
     void setDisplayBit(int x, int y, bool val);
     void propagateField(bool inverted);
     void resetField();
-    void init();
     bool spawnGrain(int y);
     bool hasFreeSpot(int y);
-    void tick(double status);
-    void setup(SIMULATION_STATE new_state);
     void removeFrom(int y1, int y2);
     bool isPosFree(int x, int y);
     void printField();
+
+public:
+    DisplayHandler();
+
+    void init();
+    void setup(SIMULATION_STATE new_state);
+    void tick(double status);
 
     bool is_full;
     bool sim_idle;

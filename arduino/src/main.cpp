@@ -3,8 +3,8 @@
 #include <DisplayHandler.h>
 #include <TimerHandler.h>
 
-TimerHandler time_handler = TimerHandler();
-DisplayHandler display_handler = DisplayHandler();
+TimerHandler time_handler;
+DisplayHandler display_handler;
 
 void tickPosition()
 {
@@ -18,6 +18,10 @@ void setup()
 #if DEBUG
   Serial.begin(SERIAL_SPEED);
 #endif
+
+  time_handler = TimerHandler();
+  display_handler = DisplayHandler();
+
   // initialize objects & attach interrupts
   time_handler.init(tickPosition);
   display_handler.init();
