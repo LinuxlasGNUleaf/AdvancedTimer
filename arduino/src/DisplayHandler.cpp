@@ -63,6 +63,7 @@ bool DisplayHandler::isPosFree(int x, int y)
 
 void DisplayHandler::propagateField(bool inversed)
 {
+    sim_idle = true;
     int dir = inversed ? -1 : 1;
     int y;
     // y = MAT_WIDTH * MAT_MODULE_COUNT - 1
@@ -76,14 +77,14 @@ void DisplayHandler::propagateField(bool inversed)
         else
         {
             // normal gravity
-            y = y_bottom - a - 1;
+            y = y_bottom - a;
         }
         for (int x = 0; x < MAT_WIDTH; x++)
         {
             // check if grain is active
             if (!getBit(active, x, y))
                 continue;
-
+            sim_idle = false;
             // remove grain from active matrix
             setBit(active, x, y, false);
 
@@ -152,24 +153,21 @@ void DisplayHandler::init()
 void DisplayHandler::printField()
 {
 #if DEBUG
-    SPRINTLN("MATRIX:");
+    SPRINTLN(" MATRIX\t|\tACTIVE:");
     for (int y = 0; y < MAT_WIDTH * MAT_MODULE_COUNT; y++)
     {
         for (int x = 0; x < MAT_WIDTH; x++)
         {
             SPRINT(getBit(matrix, x, y));
         }
-        SPRINTLN();
-    }
-    SPRINTLN("ACTIVE:");
-    for (int y = 0; y < MAT_WIDTH * MAT_MODULE_COUNT; y++)
-    {
+        SPRINT("\t");
         for (int x = 0; x < MAT_WIDTH; x++)
         {
             SPRINT(getBit(active, x, y));
         }
         SPRINTLN();
     }
+    SPRINTLN("\n");
 #endif
 }
 
@@ -213,8 +211,8 @@ void DisplayHandler::tick(double timer_status)
     last_display_update = millis();
 
     bool prop_inversed = false;
-    bool spawn = false;
-    int spawn_row = 0;
+    bool spawn = false, remove = false, spawn_res = false;
+    int spawn_row = 0, remove_top = 0, remove_bottom = 0;
     float status_diff_current, status_diff_next;
 
     switch (state)
@@ -237,7 +235,9 @@ void DisplayHandler::tick(double timer_status)
         if (status_diff_current > status_diff_next)
         {
             spawn = true;
-            removeFrom(0, MAT_WIDTH - 1);
+            remove = true;
+            remove_top = 0;
+            remove_bottom = MAT_WIDTH - 1;
         }
         break;
 
@@ -246,7 +246,9 @@ void DisplayHandler::tick(double timer_status)
         if (idle_count % MAT_GRAIN_SPAWN_MULT == 0)
         {
             spawn = true;
-            removeFrom(MAT_WIDTH * 2 - 1, MAT_WIDTH);
+            remove = true;
+            remove_top = MAT_WIDTH * 2 - 1;
+            remove_bottom = MAT_WIDTH;
         }
         idle_count++;
         prop_inversed = true;
@@ -257,8 +259,13 @@ void DisplayHandler::tick(double timer_status)
     }
 
     propagateField(prop_inversed);
-    if (spawn && !is_full)
-        spawnGrain(spawn_row);
+    if (spawn)
+    {
+        spawn_res = spawnGrain(spawn_row);
+        sim_idle = false;
+    }
+    if (remove && spawn_res)
+        removeFrom(remove_top, remove_bottom);
 
     mat_display->update();
 }

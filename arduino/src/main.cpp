@@ -24,7 +24,7 @@ void setup()
 
   // fill upper half of hourglass
   display_handler.setup(SIM_FILL);
-  while (!display_handler.is_full || time_handler.timer_state != RUNNING)
+  while (!display_handler.is_full || !display_handler.sim_idle || time_handler.timer_state != RUNNING)
   {
     display_handler.tick(0);
     time_handler.tick();
@@ -35,7 +35,7 @@ void setup()
 float progress;
 void loop()
 {
-  while (!display_handler.is_full || time_handler.timer_state == RUNNING)
+  while (!display_handler.is_full || !display_handler.sim_idle || time_handler.timer_state == RUNNING)
   {
     progress = time_handler.calculateTimerProgress();
     display_handler.tick(progress);
@@ -47,7 +47,7 @@ void loop()
   }
   time_handler.resetTimerHandler();
   display_handler.setup(SIM_RELOADING);
-  while (!display_handler.is_full || time_handler.timer_state != RUNNING)
+  while (!display_handler.is_full || !display_handler.sim_idle || time_handler.timer_state != RUNNING)
   {
     display_handler.tick(0);
     time_handler.tick();

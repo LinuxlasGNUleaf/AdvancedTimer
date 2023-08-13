@@ -48,5 +48,6 @@ public:
     void printField();
 
     bool is_full;
+    bool sim_idle;
 };
 #endif
