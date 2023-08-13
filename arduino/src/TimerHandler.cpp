@@ -60,7 +60,7 @@ void TimerHandler::resetTimerHandler()
         timer_stored_value1 = 0;
         timer_stored_value2 = 0;
         timer_raw_value = 0;
-        timer_mode = HH_MM_MODE;
+        timer_mode = UNDEFINED;
     }
     else
     {
@@ -285,10 +285,19 @@ void TimerHandler::tick()
         // button was pressed before and ignore_button_release was not set, button press is valid
         else if (button_previously_pressed)
         {
+            TIMER_MODE temp_mode;
             switch (timer_state)
             {
             case SELECT_MODE:
-                timer_mode = (timer_raw_value % 2 == 0) ? HH_MM_MODE : MM_SS_MODE;
+                temp_mode = (timer_raw_value % 2 == 0) ? HH_MM_MODE : MM_SS_MODE;
+                // if stored mode is not the same as the selected one, discard stored values
+                if (temp_mode != timer_mode)
+                {
+                    SPRINTLN("MODES DIFFER, DISCARDING LOADED VALUES.");
+                    timer_stored_value1 = 0;
+                    timer_stored_value2 = 0;
+                }
+                timer_mode = temp_mode;
                 timer_state = SELECT_TIME;
                 break;
 

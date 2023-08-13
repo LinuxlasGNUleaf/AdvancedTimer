@@ -14,6 +14,7 @@ enum TIMER_STATE
 
 enum TIMER_MODE
 {
+    UNDEFINED,
     HH_MM_MODE,
     MM_SS_MODE
 };
