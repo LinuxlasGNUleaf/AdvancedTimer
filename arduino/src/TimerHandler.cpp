@@ -144,9 +144,9 @@ void TimerHandler::updateDisplay()
         - digits don't blink, dots do
         - show remaining time on seg display
         */
-       unsigned long remaining_ms = calculateRemainingMs();
+        unsigned long remaining_ms = calculateRemainingMs();
         encodeNumberToSegments(createDisplayLiteral(remaining_ms), segments, 0, 4);
-        if ((remaining_ms/1000) % 2 == 1)
+        if ((remaining_ms / 1000) % 2 == 1)
             segments[2] |= SEG_DP;
         break;
     }
@@ -173,7 +173,7 @@ void TimerHandler::updateDisplay()
         - dots are off
         */
         for (int i = 0; i < 4; i++)
-            segments[i] = SEG_END[i];
+            segments[i] = blink_state ? SEG_END[i] : 0;
         break;
     }
 
@@ -329,7 +329,7 @@ void TimerHandler::tick()
             case FINISHED:
                 // Timer stopped and button pressed, reset the board
                 alarm_buzzer->stop();
-                resetFunc();
+                timer_state = SELECT_MODE;
                 break;
             }
 
@@ -378,7 +378,7 @@ unsigned int TimerHandler::createDisplayLiteral(unsigned long milliseconds)
     case MM_SS_MODE:
     {
         unsigned int seconds = ceil(milliseconds / 1000.0f);
-        return((seconds / 60) * 100) + (seconds % 60);
+        return ((seconds / 60) * 100) + (seconds % 60);
         break;
     }
 
@@ -389,12 +389,17 @@ unsigned int TimerHandler::createDisplayLiteral(unsigned long milliseconds)
 
 float TimerHandler::calculateTimerProgress()
 {
-    return float(calculateRemainingMs()) / total_ms;
+    if (timer_state == PAUSED)
+        return float(remaining_ms) / total_ms;
+    if (timer_state == FINISHED)
+        return 1.0f;
+    return 1 - float(calculateRemainingMs()) / total_ms;
 }
 
 unsigned long TimerHandler::calculateRemainingMs()
 {
-    if (timer_state == TIMER_STATE::RUNNING)
-        return timer_start_ts + remaining_ms - millis();
-    return remaining_ms;
+    if (timer_start_ts + remaining_ms < millis())
+        return 0;
+    return timer_start_ts + remaining_ms - millis();
+    
 }

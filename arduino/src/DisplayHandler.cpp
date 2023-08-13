@@ -54,21 +54,19 @@ void DisplayHandler::setDisplayBit(int a, int b, bool val)
 
 bool DisplayHandler::isPosFree(int x, int y)
 {
-    if (y < y_top || y > y_bottom || x < 0 || x >= MAT_WIDTH)
+    if (x < 0 || x >= MAT_WIDTH)
+        return false;
+    if (y < min(y_bottom, y_top) || y > max(y_bottom, y_top))
         return false;
     return !getBit(matrix, x, y) && !getBit(MAT_CONSTRAINTS, x, y);
 }
 
 void DisplayHandler::propagateField(bool inversed)
 {
-    int dir;
-    if (inversed)
-        dir = -1;
-    else
-        dir = 1;
+    int dir = inversed ? -1 : 1;
     int y;
     // y = MAT_WIDTH * MAT_MODULE_COUNT - 1
-    for (int a = 0; a < y_bottom - y_top; a++)
+    for (int a = 0; a <= abs(y_bottom - y_top); a++)
     {
         if (inversed)
         {
@@ -233,8 +231,8 @@ void DisplayHandler::tick(double timer_status)
 
     case SIM_RUNNING:
         spawn_row = MAT_WIDTH;
-        status_diff_current = abs((float(free_count) / MAT_FREE) - timer_status);
-        status_diff_next = abs((float(free_count - 1) / MAT_FREE) - timer_status);
+        status_diff_current = abs((float(free_count) / MAT_FREE) - (1 - timer_status));
+        status_diff_next = abs((float(free_count - 1) / MAT_FREE) - (1 - timer_status));
 
         if (status_diff_current > status_diff_next)
         {
@@ -244,10 +242,14 @@ void DisplayHandler::tick(double timer_status)
         break;
 
     case SIM_RELOADING:
-        prop_inversed = true;
-        spawn = true;
         spawn_row = MAT_WIDTH - 1;
-        removeFrom(MAT_WIDTH, MAT_WIDTH * 2 - 1);
+        if (idle_count % MAT_GRAIN_SPAWN_MULT == 0)
+        {
+            spawn = true;
+            removeFrom(MAT_WIDTH * 2 - 1, MAT_WIDTH);
+        }
+        idle_count++;
+        prop_inversed = true;
         break;
 
     default:

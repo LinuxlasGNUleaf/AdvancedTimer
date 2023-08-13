@@ -32,18 +32,25 @@ void setup()
   display_handler.setup(SIM_RUNNING);
 }
 
-unsigned long last_update = 0;
-unsigned long last_spawn = 0;
-
+float progress;
 void loop()
 {
-  float progress;
-  while (time_handler.timer_state != TIMER_STATE::FINISHED || display_handler.is_full == false)
+  while (!display_handler.is_full || time_handler.timer_state == RUNNING)
   {
-    time_handler.tick();
     progress = time_handler.calculateTimerProgress();
     display_handler.tick(progress);
+    time_handler.tick();
   }
-  time_handler.tick();
-
+  while (time_handler.timer_state == FINISHED)
+  {
+    time_handler.tick();
+  }
+  time_handler.resetTimerHandler();
+  display_handler.setup(SIM_RELOADING);
+  while (!display_handler.is_full || time_handler.timer_state != RUNNING)
+  {
+    display_handler.tick(0);
+    time_handler.tick();
+  }
+  display_handler.setup(SIM_RUNNING);
 }
